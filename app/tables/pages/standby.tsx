@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { TableConfig } from "~/utils/tableConfig";
 
 export default function Standby() {
@@ -10,5 +9,10 @@ export default function Standby() {
     setTableNumber(config.getTableNumber());
   }, []);
 
-  return <div>Table no. {tableNumber}</div>;
+  return (
+    <div>
+      <h1>Table Order System</h1>
+      <p>Table Number: {tableNumber}</p>
+    </div>
+  );
 }

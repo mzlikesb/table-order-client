@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Phone, ShoppingCart, Bell } from 'lucide-react';
+import { Phone, ShoppingCart, Bell, Sun, Moon } from 'lucide-react';
 import MenuCard from '../../menus/components/menuCard';
 import CategoryList from '../../menus/components/categoryList';
+import LanguageSelector from '../../components/languageSelector';
 import type { MenuItem, Category } from '../../types/menu';
 import { menuApi, orderApi, callApi } from '../../lib/api';
 
@@ -72,6 +73,30 @@ export default function Main() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState('ko');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // 언어 설정 초기화
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage) {
+      setCurrentLanguage(savedLanguage);
+    }
+  }, []);
+
+  // 다크모드 설정 초기화
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
 
   // 메뉴 데이터 로드
   useEffect(() => {
@@ -134,6 +159,27 @@ export default function Main() {
       }
     } catch (err) {
       alert('주문에 실패했습니다.');
+    }
+  };
+
+  const handleLanguageChange = (languageCode: string) => {
+    setCurrentLanguage(languageCode);
+    // 언어 변경 시 로컬 스토리지에 저장
+    localStorage.setItem('language', languageCode);
+    // 페이지 새로고침으로 언어 적용 (실제로는 i18n 라이브러리 사용)
+    window.location.reload();
+  };
+
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    
+    if (newTheme) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   };
 
@@ -232,18 +278,36 @@ export default function Main() {
             호출하기
           </button>
 
-          <button
-            onClick={handleCheckout}
-            className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
-          >
-            <ShoppingCart size={20} />
-            장바구니
-            {getCartTotalCount() > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {getCartTotalCount()}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* 언어 변경 버튼 */}
+            <LanguageSelector
+              currentLanguage={currentLanguage}
+              onLanguageChange={handleLanguageChange}
+            />
+
+            {/* 다크모드 전환 버튼 */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 bg-gray-200 dark:bg-gray-800 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+              title="테마 변경"
+            >
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
+            {/* 장바구니 버튼 */}
+            <button
+              onClick={handleCheckout}
+              className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
+            >
+              <ShoppingCart size={20} />
+              장바구니
+              {getCartTotalCount() > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {getCartTotalCount()}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </footer>
 

@@ -63,14 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {/* 테마 토글 버튼 */}
-        <button
-          onClick={toggleTheme}
-          className="fixed top-4 right-4 z-50 p-2 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-          title="테마 변경"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
+
         
         {children}
         <ScrollRestoration />

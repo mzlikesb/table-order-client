@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, ShoppingCart, Bell } from 'lucide-react';
 import MenuCard from '../../menus/components/menuCard';
 import CategoryList from '../../menus/components/categoryList';
 import type { MenuItem, Category } from '../../types/menu';
+import { menuApi, orderApi, callApi } from '../../lib/api';
 
 // 샘플 데이터
 const categories: Category[] = [
@@ -68,10 +69,38 @@ export default function Main() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [cartItems, setCartItems] = useState<{ [key: string]: number }>({});
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 메뉴 데이터 로드
+  useEffect(() => {
+    const loadMenus = async () => {
+      try {
+        setLoading(true);
+        const response = await menuApi.getMenus();
+        if (response.success && response.data) {
+          setMenus(response.data);
+        } else {
+          setError(response.error || '메뉴를 불러오는데 실패했습니다.');
+          // API 실패 시 샘플 데이터 사용
+          setMenus(sampleMenus);
+        }
+      } catch (err) {
+        setError('메뉴를 불러오는데 실패했습니다.');
+        // 에러 시 샘플 데이터 사용
+        setMenus(sampleMenus);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMenus();
+  }, []);
 
   const filteredMenus = selectedCategory === 'all' 
-    ? sampleMenus 
-    : sampleMenus.filter(menu => menu.category === selectedCategory);
+    ? menus 
+    : menus.filter(menu => menu.category === selectedCategory);
 
   const handleAddToCart = (menuId: string, quantity: number) => {
     setCartItems(prev => ({
@@ -80,14 +109,55 @@ export default function Main() {
     }));
   };
 
+  const handleCheckout = async () => {
+    if (getCartTotalCount() === 0) {
+      alert('장바구니가 비어있습니다.');
+      return;
+    }
+
+    try {
+      const orderItems = Object.entries(cartItems).map(([menuId, quantity]) => ({
+        menuId,
+        quantity
+      }));
+
+      const response = await orderApi.createOrder({
+        tableId: '5', // 현재 테이블 번호
+        items: orderItems
+      });
+
+      if (response.success) {
+        alert('주문이 완료되었습니다!');
+        setCartItems({}); // 장바구니 비우기
+      } else {
+        alert(response.error || '주문에 실패했습니다.');
+      }
+    } catch (err) {
+      alert('주문에 실패했습니다.');
+    }
+  };
+
   const getCartTotalCount = () => {
     return Object.values(cartItems).reduce((sum, count) => sum + count, 0);
   };
 
-  const handleCall = () => {
-    setIsCallModalOpen(true);
-    // 실제로는 서버에 호출 요청을 보내는 로직
-    setTimeout(() => setIsCallModalOpen(false), 2000);
+  const handleCall = async () => {
+    try {
+      const response = await callApi.createCall({
+        tableId: '5', // 현재 테이블 번호
+        type: 'staff',
+        message: '직원 호출'
+      });
+      
+      if (response.success) {
+        setIsCallModalOpen(true);
+        setTimeout(() => setIsCallModalOpen(false), 2000);
+      } else {
+        alert(response.error || '호출에 실패했습니다.');
+      }
+    } catch (err) {
+      alert('호출에 실패했습니다.');
+    }
   };
 
   return (
@@ -120,20 +190,33 @@ export default function Main() {
 
         {/* Right Content - Menu Grid */}
         <main className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredMenus.map((menu) => (
-              <MenuCard
-                key={menu.id}
-                menu={menu}
-                onAddToCart={handleAddToCart}
-              />
-            ))}
-          </div>
-          
-          {filteredMenus.length === 0 && (
+          {loading ? (
             <div className="text-center py-12">
-              <p className="table-text-secondary text-lg">해당 카테고리의 메뉴가 없습니다.</p>
+              <p className="table-text-secondary text-lg">메뉴를 불러오는 중...</p>
             </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-red-500 text-lg">{error}</p>
+              <p className="table-text-secondary text-sm mt-2">샘플 데이터를 사용합니다.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredMenus.map((menu) => (
+                  <MenuCard
+                    key={menu.id}
+                    menu={menu}
+                    onAddToCart={handleAddToCart}
+                  />
+                ))}
+              </div>
+              
+              {filteredMenus.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="table-text-secondary text-lg">해당 카테고리의 메뉴가 없습니다.</p>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -150,6 +233,7 @@ export default function Main() {
           </button>
 
           <button
+            onClick={handleCheckout}
             className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
           >
             <ShoppingCart size={20} />

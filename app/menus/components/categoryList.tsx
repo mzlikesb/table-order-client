@@ -1,4 +1,5 @@
 import type { Category, CategoryListProps } from '../../types/menu';
+import { i18n } from '../../utils/i18n';
 
 export default function CategoryList({ 
   categories, 
@@ -8,7 +9,7 @@ export default function CategoryList({
   return (
     <aside className="w-64 table-sidebar shadow-sm border-r">
       <div className="p-4">
-        <h2 className="text-lg font-semibold table-text-primary mb-4">카테고리</h2>
+        <h2 className="text-lg font-semibold table-text-primary mb-4">{i18n.t('all')}</h2>
         <nav className="space-y-2">
           {categories.map((category) => (
             <button

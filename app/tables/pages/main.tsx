@@ -4,16 +4,19 @@ import MenuCard from '../../menus/components/menuCard';
 import CategoryList from '../../menus/components/categoryList';
 import LanguageSelector from '../../components/languageSelector';
 import CartDrawer from '../../components/cartDrawer';
+import CallModal from '../../components/callModal';
 import type { MenuItem, Category, CartItem } from '../../types/menu';
+import type { CreateCallRequest } from '../../types/api';
 import { menuApi, orderApi, callApi } from '../../lib/api';
+import { i18n, initializeLanguage, type Language } from '../../utils/i18n';
 
-// 샘플 데이터
-const categories: Category[] = [
-  { id: 'all', name: '전체' },
-  { id: 'main', name: '메인' },
-  { id: 'side', name: '사이드' },
-  { id: 'drink', name: '음료' },
-  { id: 'dessert', name: '디저트' },
+// 카테고리 데이터 (동적으로 생성)
+const getCategories = (): Category[] => [
+  { id: 'all', name: i18n.t('all') },
+  { id: 'main', name: i18n.t('main') },
+  { id: 'side', name: i18n.t('side') },
+  { id: 'drink', name: i18n.t('drink') },
+  { id: 'dessert', name: i18n.t('dessert') },
 ];
 
 
@@ -23,19 +26,20 @@ export default function Main() {
   const [cartItems, setCartItems] = useState<{ [key: string]: number }>({});
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [isCallSuccessModalOpen, setIsCallSuccessModalOpen] = useState(false);
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentLanguage, setCurrentLanguage] = useState('ko');
+  const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // 언어 설정 초기화
+  // 언어 초기화
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('language');
-    if (savedLanguage) {
-      setCurrentLanguage(savedLanguage);
-    }
+    initializeLanguage();
+    setCurrentLanguage(i18n.getLanguage());
   }, []);
+
+
 
   // 다크모드 설정 초기화
   useEffect(() => {
@@ -145,11 +149,9 @@ export default function Main() {
   };
 
   const handleLanguageChange = (languageCode: string) => {
-    setCurrentLanguage(languageCode);
-    // 언어 변경 시 로컬 스토리지에 저장
-    localStorage.setItem('language', languageCode);
-    // 페이지 새로고침으로 언어 적용 (실제로는 i18n 라이브러리 사용)
-    window.location.reload();
+    const lang = languageCode as Language;
+    setCurrentLanguage(lang);
+    i18n.setLanguage(lang);
   };
 
   const toggleTheme = () => {
@@ -169,17 +171,17 @@ export default function Main() {
     return Object.values(cartItems).reduce((sum, count) => sum + count, 0);
   };
 
-  const handleCall = async () => {
+  const handleCall = () => {
+    setIsCallModalOpen(true);
+  };
+
+  const handleCallSubmit = async (callData: CreateCallRequest) => {
     try {
-      const response = await callApi.createCall({
-        tableId: '5', // 현재 테이블 번호
-        type: 'staff',
-        message: '직원 호출'
-      });
+      const response = await callApi.createCall(callData);
       
       if (response.success) {
-        setIsCallModalOpen(true);
-        setTimeout(() => setIsCallModalOpen(false), 2000);
+        setIsCallSuccessModalOpen(true);
+        setTimeout(() => setIsCallSuccessModalOpen(false), 2000);
       } else {
         alert(response.error || '호출에 실패했습니다.');
       }
@@ -198,11 +200,11 @@ export default function Main() {
               <span className="text-white dark:text-gray-900 font-bold text-lg">🍽️</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold table-text-primary">맛있는 식당</h1>
+              <h1 className="text-xl font-bold table-text-primary">{i18n.t('restaurantName')}</h1>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm table-text-secondary">테이블 5번</p>
+            <p className="text-sm table-text-secondary">{i18n.t('tableNumber')}</p>
           </div>
         </div>
       </header>
@@ -211,7 +213,7 @@ export default function Main() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Categories */}
         <CategoryList
-          categories={categories}
+          categories={getCategories()}
           selectedCategory={selectedCategory}
           onCategorySelect={setSelectedCategory}
         />
@@ -220,12 +222,12 @@ export default function Main() {
         <main className="flex-1 overflow-auto p-6">
           {loading ? (
             <div className="text-center py-12">
-              <p className="table-text-secondary text-lg">메뉴를 불러오는 중...</p>
+              <p className="table-text-secondary text-lg">{i18n.t('loadingMenu')}</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <p className="text-red-500 text-lg">{error}</p>
-              <p className="table-text-secondary text-sm mt-2">샘플 데이터를 사용합니다.</p>
+              <p className="table-text-secondary text-sm mt-2">{i18n.t('menuLoadError')}</p>
             </div>
           ) : (
             <>
@@ -241,7 +243,7 @@ export default function Main() {
               
               {filteredMenus.length === 0 && (
                 <div className="text-center py-12">
-                  <p className="table-text-secondary text-lg">해당 카테고리의 메뉴가 없습니다.</p>
+                  <p className="table-text-secondary text-lg">{i18n.t('noMenuInCategory')}</p>
                 </div>
               )}
             </>
@@ -257,7 +259,7 @@ export default function Main() {
             className="flex items-center gap-2 border-2 border-gray-600 dark:border-gray-400 text-gray-600 dark:text-gray-400 px-6 py-3 rounded-lg font-medium hover:bg-gray-600 hover:text-white dark:hover:bg-gray-400 dark:hover:text-gray-900 transition-colors"
           >
             <Bell size={20} />
-            호출하기
+            {i18n.t('call')}
           </button>
 
           <div className="flex items-center gap-3">
@@ -271,7 +273,7 @@ export default function Main() {
             <button
               onClick={toggleTheme}
               className="p-2 bg-gray-200 dark:bg-gray-800 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-              title="테마 변경"
+              title={i18n.t('themeToggle')}
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -282,7 +284,7 @@ export default function Main() {
               className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
             >
               <ShoppingCart size={20} />
-              장바구니
+              {i18n.t('cart')}
               {getCartTotalCount() > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {getCartTotalCount()}
@@ -304,14 +306,22 @@ export default function Main() {
       />
 
       {/* Call Modal */}
-      {isCallModalOpen && (
+      <CallModal
+        isOpen={isCallModalOpen}
+        onClose={() => setIsCallModalOpen(false)}
+        onSubmit={handleCallSubmit}
+        tableId="5"
+      />
+
+      {/* Call Success Modal */}
+      {isCallSuccessModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="table-card rounded-lg p-8 text-center">
             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Phone size={32} className="text-white" />
             </div>
-            <h3 className="text-xl font-semibold table-text-primary mb-2">호출 완료!</h3>
-            <p className="table-text-secondary">직원이 곧 방문하겠습니다.</p>
+            <h3 className="text-xl font-semibold table-text-primary mb-2">{i18n.t('callSuccess')}</h3>
+            <p className="table-text-secondary">{i18n.t('callSuccessMessage')}</p>
           </div>
         </div>
       )}

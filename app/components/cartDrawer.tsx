@@ -8,6 +8,7 @@ import {
   DrawerClose,
 } from './ui/drawer';
 import type { CartDrawerProps } from '../types/menu';
+import { i18n } from '../utils/i18n';
 
 export default function CartDrawer({
   isOpen,
@@ -38,7 +39,7 @@ export default function CartDrawer({
         <DrawerHeader>
           <DrawerTitle className="flex items-center gap-2">
             <ShoppingCart size={24} />
-            장바구니
+            {i18n.t('cart')}
             {totalCount > 0 && (
               <span className="bg-red-500 text-white text-sm rounded-full w-6 h-6 flex items-center justify-center">
                 {totalCount}
@@ -51,8 +52,8 @@ export default function CartDrawer({
           {cartItems.length === 0 ? (
             <div className="text-center py-12">
               <ShoppingCart size={48} className="mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-500 text-lg">장바구니가 비어있습니다</p>
-              <p className="text-gray-400 text-sm mt-2">메뉴를 선택해주세요</p>
+              <p className="text-gray-500 text-lg">{i18n.t('cartEmpty')}</p>
+              <p className="text-gray-400 text-sm mt-2">{i18n.t('cartEmptyMessage')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -131,7 +132,7 @@ export default function CartDrawer({
               {/* 총 금액 */}
               <div className="flex justify-between items-center py-4 border-t">
                 <span className="text-lg font-semibold table-text-primary">
-                  총 금액
+                  {i18n.t('totalAmount')}
                 </span>
                 <span className="text-xl font-bold text-gray-700 dark:text-gray-300">
                   ₩{totalAmount.toLocaleString()}
@@ -144,7 +145,7 @@ export default function CartDrawer({
                 className="w-full table-accent table-accent-hover py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <ShoppingCart size={20} />
-                주문하기
+                {i18n.t('checkout')}
               </button>
             </div>
           </DrawerFooter>

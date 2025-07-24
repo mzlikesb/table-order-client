@@ -1,5 +1,6 @@
 import React from 'react';
 import { Globe, Check } from 'lucide-react';
+import { i18n } from '../utils/i18n';
 import {
   Drawer,
   DrawerClose,
@@ -52,10 +53,10 @@ export default function LanguageSelector({
           <DrawerHeader>
             <DrawerTitle className="flex items-center gap-2">
               <Globe size={20} />
-              언어 선택
+              {i18n.t('languageSelection')}
             </DrawerTitle>
             <DrawerDescription>
-              사용할 언어를 선택해주세요.
+              {i18n.t('selectLanguage')}
             </DrawerDescription>
           </DrawerHeader>
           
@@ -91,7 +92,7 @@ export default function LanguageSelector({
           <DrawerFooter>
             <DrawerClose asChild>
               <Button variant="outline" className="w-full">
-                닫기
+                {i18n.t('close')}
               </Button>
             </DrawerClose>
           </DrawerFooter>

@@ -40,6 +40,7 @@ export interface Translations {
   otherDescription: string;
   callSuccess: string;
   callSuccessMessage: string;
+  callFailed: string;
   cancel: string;
   
   // Language
@@ -49,6 +50,14 @@ export interface Translations {
   
   // Theme
   themeToggle: string;
+  
+  // Connection
+  connected: string;
+  disconnected: string;
+  
+  // Order
+  orderSuccess: string;
+  orderFailed: string;
 }
 
 // 번역 데이터를 JSON 파일에서 불러오기

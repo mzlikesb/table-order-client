@@ -13,6 +13,21 @@ import type {
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api'; // 백엔드 서버 URL
 
+// 서버 응답 데이터를 클라이언트 타입으로 변환하는 함수
+const transformServerMenuItem = (serverData: any): MenuItem => {
+  return {
+    id: serverData.id,
+    name: serverData.name,
+    price: serverData.price,
+    image: serverData.image_url,
+    description: serverData.description,
+    category: serverData.category,
+    isAvailable: serverData.is_available,
+    createdAt: serverData.created_at,
+    updatedAt: serverData.updated_at
+  };
+};
+
 // 메뉴 관련 API
 export const menuApi = {
   // 고객용 메뉴 목록 조회
@@ -20,7 +35,7 @@ export const menuApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/menus`);
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: data.map(transformServerMenuItem) };
     } catch (error) {
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
@@ -31,7 +46,7 @@ export const menuApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/menus`);
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: data.map(transformServerMenuItem) };
     } catch (error) {
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
@@ -40,13 +55,28 @@ export const menuApi = {
   // 메뉴 추가
   createMenu: async (menuData: Omit<MenuItem, 'id'>): Promise<ApiResponse<MenuItem>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/menus`, {
+      // 서버 API와 맞는 필드명으로 변환
+      const serverData = {
+        name: menuData.name,
+        price: menuData.price,
+        category: menuData.category,
+        image_url: menuData.image,
+        is_available: menuData.isAvailable
+      };
+
+      const response = await fetch(`${API_BASE_URL}/menus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(menuData),
+        body: JSON.stringify(serverData),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 추가에 실패했습니다.' };
+      }
+      
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
       return { success: false, error: '메뉴 추가에 실패했습니다.' };
     }
@@ -55,13 +85,27 @@ export const menuApi = {
   // 메뉴 수정
   updateMenu: async (id: string, menuData: Partial<MenuItem>): Promise<ApiResponse<MenuItem>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/menus/${id}`, {
+      // 서버 API와 맞는 필드명으로 변환
+      const serverData: any = {};
+      if (menuData.name !== undefined) serverData.name = menuData.name;
+      if (menuData.price !== undefined) serverData.price = menuData.price;
+      if (menuData.category !== undefined) serverData.category = menuData.category;
+      if (menuData.image !== undefined) serverData.image_url = menuData.image;
+      if (menuData.isAvailable !== undefined) serverData.is_available = menuData.isAvailable;
+
+      const response = await fetch(`${API_BASE_URL}/menus/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(menuData),
+        body: JSON.stringify(serverData),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 수정에 실패했습니다.' };
+      }
+      
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
       return { success: false, error: '메뉴 수정에 실패했습니다.' };
     }
@@ -70,11 +114,17 @@ export const menuApi = {
   // 메뉴 품절 상태 변경
   toggleAvailability: async (id: string): Promise<ApiResponse<MenuItem>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/menus/${id}/availability`, {
+      const response = await fetch(`${API_BASE_URL}/menus/${id}/availability`, {
         method: 'PATCH',
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 상태 변경에 실패했습니다.' };
+      }
+      
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
       return { success: false, error: '메뉴 상태 변경에 실패했습니다.' };
     }
@@ -83,9 +133,15 @@ export const menuApi = {
   // 메뉴 삭제
   deleteMenu: async (id: string): Promise<ApiResponse<void>> => {
     try {
-      await fetch(`${API_BASE_URL}/admin/menus/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/menus/${id}`, {
         method: 'DELETE',
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 삭제에 실패했습니다.' };
+      }
+      
       return { success: true };
     } catch (error) {
       return { success: false, error: '메뉴 삭제에 실패했습니다.' };

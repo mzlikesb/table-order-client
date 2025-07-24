@@ -174,15 +174,15 @@ export default function CustomerMain() {
 
       const response = await orderApi.createOrder(orderData);
       if (response.success) {
-        alert('주문이 완료되었습니다!');
+        alert(i18n.t('orderSuccess'));
         clearCart();
         setIsCartOpen(false);
       } else {
-        alert('주문에 실패했습니다.');
+        alert(i18n.t('orderFailed'));
       }
     } catch (error) {
       console.error('주문 실패:', error);
-      alert('주문에 실패했습니다.');
+      alert(i18n.t('orderFailed'));
     }
   };
 
@@ -190,14 +190,14 @@ export default function CustomerMain() {
     try {
       const response = await callApi.createCall(callData);
       if (response.success) {
-        alert('호출이 완료되었습니다!');
+        alert(i18n.t('callSuccess'));
         setIsCallModalOpen(false);
       } else {
-        alert('호출에 실패했습니다.');
+        alert(i18n.t('callFailed'));
       }
     } catch (error) {
       console.error('호출 실패:', error);
-      alert('호출에 실패했습니다.');
+      alert(i18n.t('callFailed'));
     }
   };
 
@@ -244,7 +244,7 @@ export default function CustomerMain() {
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {socketConnected ? '연결됨' : '연결 끊김'}
+                  {socketConnected ? i18n.t('connected') : i18n.t('disconnected')}
                 </span>
               </div>
             </div>

@@ -11,7 +11,8 @@ export default function AdminTables() {
 
   useEffect(() => {
     loadTables();
-    const interval = setInterval(loadTables, 15000); // 15초마다 새로고침
+    // 더 빠른 실시간 업데이트 (10초마다)
+    const interval = setInterval(loadTables, 10000);
     return () => clearInterval(interval);
   }, []);
 

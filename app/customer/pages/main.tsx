@@ -1,330 +1,327 @@
 import { useState, useEffect } from 'react';
-import { Phone, ShoppingCart, Bell, Sun, Moon } from 'lucide-react';
-import MenuCard from '../components/menuCard';
+import { ShoppingCart, Phone, Sun, Moon, Languages } from 'lucide-react';
 import CategoryList from '../components/categoryList';
-import LanguageSelector from '../../common/components/languageSelector';
+import MenuCard from '../components/menuCard';
 import CartDrawer from '../components/cartDrawer';
 import CallModal from '../components/callModal';
-import type { MenuItem, Category, CartItem } from '../../types/menu';
-import type { CreateCallRequest } from '../../types/api';
+import Footer from '../components/footer';
 import { menuApi, orderApi, callApi } from '../../lib/api';
+import { initSocket, joinTableRoom, onMenuUpdate, offMenuUpdate } from '../../lib/socket';
+import type { MenuItem, Category, CartItem } from '../../types/menu';
+import type { Order, CreateCallRequest } from '../../types/api';
 import { i18n, initializeLanguage, type Language } from '../../utils/i18n';
 
-// 카테고리 데이터 (동적으로 생성)
-const getCategories = (): Category[] => [
-  { id: 'all', name: i18n.t('all') },
-  { id: 'main', name: i18n.t('main') },
-  { id: 'side', name: i18n.t('side') },
-  { id: 'drink', name: i18n.t('drink') },
-  { id: 'dessert', name: i18n.t('dessert') },
-];
-
-
-
-export default function Main() {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [cartItems, setCartItems] = useState<{ [key: string]: number }>({});
-  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
-  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
-  const [isCallSuccessModalOpen, setIsCallSuccessModalOpen] = useState(false);
+export default function CustomerMain() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // 테이블 ID (URL 파라미터에서 가져오거나 기본값 사용)
+  const tableId = new URLSearchParams(window.location.search).get('table') || '1';
+
+  useEffect(() => {
+    // Socket.IO 초기화 및 테이블별 룸 참가
+    const socket = initSocket();
+    joinTableRoom(tableId);
+    setSocketConnected(socket.connected);
+
+    // Socket.IO 연결 상태 모니터링
+    const handleConnect = () => {
+      console.log('Socket.IO 연결됨');
+      setSocketConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      console.log('Socket.IO 연결 해제');
+      setSocketConnected(false);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // 실시간 메뉴 업데이트 리스너
+    const handleMenuUpdate = (data: any) => {
+      console.log('메뉴 업데이트 수신:', data);
+      loadMenus();
+    };
+
+    onMenuUpdate(handleMenuUpdate);
+
+    // 초기 데이터 로드
+    loadMenus();
+    loadCategories();
+
+    // 폴링 백업 (Socket.IO 연결 실패 시)
+    const interval = setInterval(() => {
+      loadMenus();
+      loadCategories();
+    }, 30000);
+
+    // 클린업
+    return () => {
+      clearInterval(interval);
+      offMenuUpdate(handleMenuUpdate);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [tableId]);
+
+  // 다크모드 초기화
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(savedDarkMode);
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
 
   // 언어 초기화
   useEffect(() => {
     initializeLanguage();
-    setCurrentLanguage(i18n.getLanguage());
+    const savedLanguage = localStorage.getItem('language') as Language || 'ko';
+    setCurrentLanguage(savedLanguage);
   }, []);
 
-
-
-  // 다크모드 설정 초기화
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  // 메뉴 데이터 로드
-  useEffect(() => {
-    const loadMenus = async () => {
-      try {
-        setLoading(true);
-        const response = await menuApi.getMenus();
-        if (response.success && response.data) {
-          setMenus(response.data);
-        } else {
-          setError(response.error || '메뉴를 불러오는데 실패했습니다.');
-          setMenus([]);
-        }
-      } catch (err) {
-        setError('메뉴를 불러오는데 실패했습니다.');
-        setMenus([]);
-      } finally {
-        setLoading(false);
+  const loadMenus = async () => {
+    try {
+      const response = await menuApi.getMenus();
+      if (response.success) {
+        setMenus(response.data || []);
       }
-    };
-
-    loadMenus();
-  }, []);
-
-  const filteredMenus = selectedCategory === 'all' 
-    ? menus 
-    : menus.filter(menu => menu.category === selectedCategory);
-
-  const handleAddToCart = (menuId: string, quantity: number) => {
-    setCartItems(prev => ({
-      ...prev,
-      [menuId]: (prev[menuId] || 0) + quantity
-    }));
+    } catch (error) {
+      console.error('메뉴 로드 실패:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdateQuantity = (menuId: string, quantity: number) => {
-    setCartItems(prev => ({
-      ...prev,
-      [menuId]: quantity
-    }));
+  const loadCategories = async () => {
+    try {
+      // 카테고리 데이터 (동적으로 생성)
+      const categoriesData: Category[] = [
+        { id: 'all', name: i18n.t('all') },
+        { id: 'main', name: i18n.t('main') },
+        { id: 'side', name: i18n.t('side') },
+        { id: 'drink', name: i18n.t('drink') },
+        { id: 'dessert', name: i18n.t('dessert') },
+      ];
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('카테고리 로드 실패:', error);
+    }
   };
 
-  const handleRemoveItem = (menuId: string) => {
+  const addToCart = (menu: MenuItem) => {
     setCartItems(prev => {
-      const newCart = { ...prev };
-      delete newCart[menuId];
-      return newCart;
+      const existingItem = prev.find(item => item.menuId === menu.id);
+      if (existingItem) {
+        return prev.map(item =>
+          item.menuId === menu.id
+            ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.price }
+            : item
+        );
+      }
+      return [...prev, { 
+        menuId: menu.id, 
+        menuName: menu.name, 
+        price: menu.price, 
+        quantity: 1, 
+        totalPrice: menu.price,
+        image: menu.image 
+      }];
     });
   };
 
-  const getCartItemsArray = (): CartItem[] => {
-    return Object.entries(cartItems).map(([menuId, quantity]) => {
-      const menu = menus.find(m => m.id == menuId); // 느슨한 비교 사용
-      
-      return {
-        menuId,
-        menuName: menu?.name || `메뉴 ${menuId}`,
-        price: menu?.price || 0,
-        quantity,
-        totalPrice: (menu?.price || 0) * quantity,
-        image: menu?.image
-      };
-    });
+  const removeFromCart = (menuId: string) => {
+    setCartItems(prev => prev.filter(item => item.menuId !== menuId));
   };
 
-  const handleCheckout = async () => {
-    if (getCartTotalCount() === 0) {
-      alert('장바구니가 비어있습니다.');
+  const updateQuantity = (menuId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(menuId);
       return;
     }
+    setCartItems(prev =>
+      prev.map(item =>
+        item.menuId === menuId ? { ...item, quantity, totalPrice: quantity * item.price } : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  const handleOrder = async () => {
+    if (cartItems.length === 0) return;
 
     try {
-      const orderItems = Object.entries(cartItems).map(([menuId, quantity]) => ({
-        menuId,
-        quantity
-      }));
+      const orderData = {
+        tableId,
+        items: cartItems.map(item => ({
+          menuId: item.menuId,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        totalAmount: cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
+      };
 
-      const response = await orderApi.createOrder({
-        tableId: '5', // 현재 테이블 번호
-        items: orderItems
-      });
-
+      const response = await orderApi.createOrder(orderData);
       if (response.success) {
         alert('주문이 완료되었습니다!');
-        setCartItems({}); // 장바구니 비우기
-        setIsCartDrawerOpen(false); // drawer 닫기
+        clearCart();
+        setIsCartOpen(false);
       } else {
-        alert(response.error || '주문에 실패했습니다.');
+        alert('주문에 실패했습니다.');
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('주문 실패:', error);
       alert('주문에 실패했습니다.');
     }
-  };
-
-  const handleLanguageChange = (languageCode: string) => {
-    const lang = languageCode as Language;
-    setCurrentLanguage(lang);
-    i18n.setLanguage(lang);
-  };
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  const getCartTotalCount = () => {
-    return Object.values(cartItems).reduce((sum, count) => sum + count, 0);
-  };
-
-  const handleCall = () => {
-    setIsCallModalOpen(true);
   };
 
   const handleCallSubmit = async (callData: CreateCallRequest) => {
     try {
       const response = await callApi.createCall(callData);
-      
       if (response.success) {
-        setIsCallSuccessModalOpen(true);
-        setTimeout(() => setIsCallSuccessModalOpen(false), 2000);
+        alert('호출이 완료되었습니다!');
+        setIsCallModalOpen(false);
       } else {
-        alert(response.error || '호출에 실패했습니다.');
+        alert('호출에 실패했습니다.');
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('호출 실패:', error);
       alert('호출에 실패했습니다.');
     }
   };
 
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('darkMode', newDarkMode.toString());
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  const handleLanguageChange = (language: Language) => {
+    setCurrentLanguage(language);
+    i18n.setLanguage(language);
+  };
+
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">{i18n.t('loadingMenu')}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen flex flex-col table-container">
-      {/* Header */}
-      <header className="table-header shadow-sm border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gray-600 dark:bg-gray-400 rounded-lg flex items-center justify-center">
-              <span className="text-white dark:text-gray-900 font-bold text-lg">🍽️</span>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 헤더 */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {i18n.t('restaurantName')}
+              </h1>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {socketConnected ? '연결됨' : '연결 끊김'}
+                </span>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold table-text-primary">{i18n.t('restaurantName')}</h1>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {i18n.t('tableNumber')} {tableId}
+              </span>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm table-text-secondary">{i18n.t('tableNumber')}</p>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Categories */}
-        <CategoryList
-          categories={getCategories()}
-          selectedCategory={selectedCategory}
-          onCategorySelect={setSelectedCategory}
-        />
-
-        {/* Right Content - Menu Grid */}
-        <main className="flex-1 overflow-auto p-6">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="table-text-secondary text-lg">{i18n.t('loadingMenu')}</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-500 text-lg">{error}</p>
-              <p className="table-text-secondary text-sm mt-2">{i18n.t('menuLoadError')}</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredMenus.map((menu) => (
-                  <MenuCard
-                    key={menu.id}
-                    menu={menu}
-                    onAddToCart={handleAddToCart}
-                  />
-                ))}
-              </div>
-              
-              {filteredMenus.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="table-text-secondary text-lg">{i18n.t('noMenuInCategory')}</p>
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      </div>
-
-      {/* Footer */}
-      <footer className="table-header shadow-lg border-t px-6 py-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handleCall}
-            className="flex items-center gap-2 border-2 border-gray-600 dark:border-gray-400 text-gray-600 dark:text-gray-400 px-6 py-3 rounded-lg font-medium hover:bg-gray-600 hover:text-white dark:hover:bg-gray-400 dark:hover:text-gray-900 transition-colors"
-          >
-            <Bell size={20} />
-            {i18n.t('call')}
-          </button>
-
-          <div className="flex items-center gap-3">
-            {/* 언어 변경 버튼 */}
-            <LanguageSelector
-              currentLanguage={currentLanguage}
-              onLanguageChange={handleLanguageChange}
+      {/* 메인 콘텐츠 */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* 카테고리 사이드바 */}
+          <div className="lg:col-span-1">
+            <CategoryList
+              categories={categories}
+              selectedCategory="all"
+              onCategorySelect={(categoryId) => {
+                // 카테고리 필터링 로직 (필요시 구현)
+              }}
             />
+          </div>
 
-            {/* 다크모드 전환 버튼 */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 bg-gray-200 dark:bg-gray-800 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-              title={i18n.t('themeToggle')}
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
-            {/* 장바구니 버튼 */}
-            <button
-              onClick={() => setIsCartDrawerOpen(true)}
-              className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
-            >
-              <ShoppingCart size={20} />
-              {i18n.t('cart')}
-              {getCartTotalCount() > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {getCartTotalCount()}
-                </span>
-              )}
-            </button>
+          {/* 메뉴 그리드 */}
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {menus.map((menu) => (
+                <MenuCard
+                  key={menu.id}
+                  menu={menu}
+                  onAddToCart={(menuId, quantity) => {
+                    const menuItem = menus.find(m => m.id === menuId);
+                    if (menuItem) {
+                      for (let i = 0; i < quantity; i++) {
+                        addToCart(menuItem);
+                      }
+                    }
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </footer>
+      </main>
 
-      {/* Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartDrawerOpen}
-        onClose={() => setIsCartDrawerOpen(false)}
-        cartItems={getCartItemsArray()}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onCheckout={handleCheckout}
+      {/* 푸터 */}
+      <Footer
+        totalItems={totalItems}
+        totalAmount={totalAmount}
+        onCartClick={() => setIsCartOpen(true)}
+        onCallClick={() => setIsCallModalOpen(true)}
+        onLanguageChange={handleLanguageChange}
+        onDarkModeToggle={toggleDarkMode}
+        currentLanguage={currentLanguage}
+        darkMode={darkMode}
       />
 
-      {/* Call Modal */}
+      {/* 장바구니 드로어 */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cartItems={cartItems}
+        onUpdateQuantity={updateQuantity}
+        onRemoveItem={removeFromCart}
+        onCheckout={handleOrder}
+      />
+
+      {/* 호출 모달 */}
       <CallModal
         isOpen={isCallModalOpen}
         onClose={() => setIsCallModalOpen(false)}
         onSubmit={handleCallSubmit}
-        tableId="5"
+        tableId={tableId}
       />
-
-      {/* Call Success Modal */}
-      {isCallSuccessModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="table-card rounded-lg p-8 text-center">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Phone size={32} className="text-white" />
-            </div>
-            <h3 className="text-xl font-semibold table-text-primary mb-2">{i18n.t('callSuccess')}</h3>
-            <p className="table-text-secondary">{i18n.t('callSuccessMessage')}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

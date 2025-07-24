@@ -13,7 +13,8 @@ export default function AdminOrders() {
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 10000); // 10초마다 새로고침
+    // 더 빠른 실시간 업데이트 (5초마다)
+    const interval = setInterval(loadOrders, 5000);
     return () => clearInterval(interval);
   }, []);
 

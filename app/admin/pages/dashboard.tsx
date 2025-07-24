@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Phone, Utensils, Table, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { orderApi, callApi, menuApi, tableApi } from '../../lib/api';
+import { initSocket, joinStaffRoom, onOrderUpdate, onCallUpdate, onMenuUpdate, onTableUpdate, offOrderUpdate, offCallUpdate, offMenuUpdate, offTableUpdate } from '../../lib/socket';
 import type { Order, Call, MenuItem, Table as TableType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
 
@@ -11,11 +12,70 @@ export default function AdminDashboard() {
   const [tables, setTables] = useState<TableType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   useEffect(() => {
+    // Socket.IO 초기화 및 직원용 룸 참가
+    const socket = initSocket();
+    joinStaffRoom();
+    setSocketConnected(socket.connected);
+
+    // Socket.IO 연결 상태 모니터링
+    const handleConnect = () => {
+      console.log('Socket.IO 연결됨');
+      setSocketConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      console.log('Socket.IO 연결 해제');
+      setSocketConnected(false);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // 실시간 업데이트 리스너 등록
+    const handleOrderUpdate = (data: any) => {
+      console.log('주문 업데이트 수신:', data);
+      loadDashboardData();
+    };
+
+    const handleCallUpdate = (data: any) => {
+      console.log('호출 업데이트 수신:', data);
+      loadDashboardData();
+    };
+
+    const handleMenuUpdate = (data: any) => {
+      console.log('메뉴 업데이트 수신:', data);
+      loadDashboardData();
+    };
+
+    const handleTableUpdate = (data: any) => {
+      console.log('테이블 업데이트 수신:', data);
+      loadDashboardData();
+    };
+
+    onOrderUpdate(handleOrderUpdate);
+    onCallUpdate(handleCallUpdate);
+    onMenuUpdate(handleMenuUpdate);
+    onTableUpdate(handleTableUpdate);
+
+    // 초기 데이터 로드
     loadDashboardData();
-    const interval = setInterval(loadDashboardData, 30000); // 30초마다 새로고침
-    return () => clearInterval(interval);
+
+    // 폴링 백업 (Socket.IO 연결 실패 시)
+    const interval = setInterval(loadDashboardData, 30000);
+
+    // 클린업
+    return () => {
+      clearInterval(interval);
+      offOrderUpdate(handleOrderUpdate);
+      offCallUpdate(handleCallUpdate);
+      offMenuUpdate(handleMenuUpdate);
+      offTableUpdate(handleTableUpdate);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -101,6 +161,24 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">관리자 대시보드</h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">현재 매장 상태를 한눈에 확인하세요</p>
+        
+        {/* 실시간 상태 표시 */}
+        <div className="mt-4 flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {socketConnected ? '실시간 연결됨' : '실시간 연결 끊김'}
+            </span>
+          </div>
+          {pendingCalls.length > 0 && (
+            <div className="flex items-center space-x-2 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-full">
+              <Phone className="w-4 h-4 text-red-500" />
+              <span className="text-sm font-medium text-red-700 dark:text-red-400">
+                대기 호출: {pendingCalls.length}개
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 에러 메시지 */}

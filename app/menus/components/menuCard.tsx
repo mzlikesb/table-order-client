@@ -1,23 +1,9 @@
-import { useState } from 'react';
 import { Plus, Minus, ShoppingCart } from 'lucide-react';
 import type { MenuItem, MenuCardProps } from '../../types/menu';
 
 export default function MenuCard({ menu, onAddToCart }: MenuCardProps) {
-  const [quantity, setQuantity] = useState(0);
-
-  const handleIncrement = () => {
-    setQuantity(prev => prev + 1);
-  };
-
-  const handleDecrement = () => {
-    setQuantity(prev => prev > 0 ? prev - 1 : 0);
-  };
-
   const handleAddToCart = () => {
-    if (quantity > 0) {
-      onAddToCart(menu.id, quantity);
-      setQuantity(0);
-    }
+    onAddToCart(menu.id, 1);
   };
 
   return (
@@ -75,36 +61,14 @@ export default function MenuCard({ menu, onAddToCart }: MenuCardProps) {
           </span>
         </div>
 
-        {/* 수량 조절 및 장바구니 담기 */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center table-border rounded-lg">
-            <button
-              onClick={handleDecrement}
-              className="p-2 table-hover transition-colors"
-              disabled={quantity === 0}
-            >
-              <Minus size={16} className="table-text-secondary" />
-            </button>
-            <span className="px-3 py-2 text-center min-w-[40px] font-medium table-text-primary">
-              {quantity}
-            </span>
-            <button
-              onClick={handleIncrement}
-              className="p-2 table-hover transition-colors"
-            >
-              <Plus size={16} className="table-text-secondary" />
-            </button>
-          </div>
-
-          <button
-            onClick={handleAddToCart}
-            disabled={quantity === 0}
-            className="flex-1 table-accent table-accent-hover py-2 px-4 rounded-lg font-medium disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-          >
-            <ShoppingCart size={16} />
-            담기
-          </button>
-        </div>
+        {/* 장바구니 담기 버튼 */}
+        <button
+          onClick={handleAddToCart}
+          className="w-full table-accent table-accent-hover py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+        >
+          <ShoppingCart size={16} />
+          담기
+        </button>
       </div>
     </div>
   );

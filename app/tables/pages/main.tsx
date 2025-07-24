@@ -3,7 +3,8 @@ import { Phone, ShoppingCart, Bell, Sun, Moon } from 'lucide-react';
 import MenuCard from '../../menus/components/menuCard';
 import CategoryList from '../../menus/components/categoryList';
 import LanguageSelector from '../../components/languageSelector';
-import type { MenuItem, Category } from '../../types/menu';
+import CartDrawer from '../../components/cartDrawer';
+import type { MenuItem, Category, CartItem } from '../../types/menu';
 import { menuApi, orderApi, callApi } from '../../lib/api';
 
 // 샘플 데이터
@@ -15,60 +16,12 @@ const categories: Category[] = [
   { id: 'dessert', name: '디저트' },
 ];
 
-const sampleMenus: MenuItem[] = [
-  {
-    id: '1',
-    name: '불고기',
-    price: 15000,
-    image: '/images/bulgogi.jpg',
-    description: '맛있는 불고기입니다',
-    category: 'main'
-  },
-  {
-    id: '2',
-    name: '김치찌개',
-    price: 12000,
-    image: '/images/kimchi-jjigae.jpg',
-    description: '얼큰한 김치찌개',
-    category: 'main'
-  },
-  {
-    id: '3',
-    name: '콜라',
-    price: 3000,
-    image: '/images/cola.jpg',
-    description: '시원한 콜라',
-    category: 'drink'
-  },
-  {
-    id: '4',
-    name: '치킨가라아게',
-    price: 18000,
-    image: '/images/chicken-karaage.jpg',
-    description: '바삭한 치킨가라아게',
-    category: 'main'
-  },
-  {
-    id: '5',
-    name: '김밥',
-    price: 8000,
-    image: '/images/kimbap.jpg',
-    description: '신선한 김밥',
-    category: 'side'
-  },
-  {
-    id: '6',
-    name: '아이스크림',
-    price: 5000,
-    image: '/images/ice-cream.jpg',
-    description: '달콤한 아이스크림',
-    category: 'dessert'
-  }
-];
+
 
 export default function Main() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [cartItems, setCartItems] = useState<{ [key: string]: number }>({});
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,13 +61,11 @@ export default function Main() {
           setMenus(response.data);
         } else {
           setError(response.error || '메뉴를 불러오는데 실패했습니다.');
-          // API 실패 시 샘플 데이터 사용
-          setMenus(sampleMenus);
+          setMenus([]);
         }
       } catch (err) {
         setError('메뉴를 불러오는데 실패했습니다.');
-        // 에러 시 샘플 데이터 사용
-        setMenus(sampleMenus);
+        setMenus([]);
       } finally {
         setLoading(false);
       }
@@ -132,6 +83,36 @@ export default function Main() {
       ...prev,
       [menuId]: (prev[menuId] || 0) + quantity
     }));
+  };
+
+  const handleUpdateQuantity = (menuId: string, quantity: number) => {
+    setCartItems(prev => ({
+      ...prev,
+      [menuId]: quantity
+    }));
+  };
+
+  const handleRemoveItem = (menuId: string) => {
+    setCartItems(prev => {
+      const newCart = { ...prev };
+      delete newCart[menuId];
+      return newCart;
+    });
+  };
+
+  const getCartItemsArray = (): CartItem[] => {
+    return Object.entries(cartItems).map(([menuId, quantity]) => {
+      const menu = menus.find(m => m.id == menuId); // 느슨한 비교 사용
+      
+      return {
+        menuId,
+        menuName: menu?.name || `메뉴 ${menuId}`,
+        price: menu?.price || 0,
+        quantity,
+        totalPrice: (menu?.price || 0) * quantity,
+        image: menu?.image
+      };
+    });
   };
 
   const handleCheckout = async () => {
@@ -154,6 +135,7 @@ export default function Main() {
       if (response.success) {
         alert('주문이 완료되었습니다!');
         setCartItems({}); // 장바구니 비우기
+        setIsCartDrawerOpen(false); // drawer 닫기
       } else {
         alert(response.error || '주문에 실패했습니다.');
       }
@@ -296,7 +278,7 @@ export default function Main() {
 
             {/* 장바구니 버튼 */}
             <button
-              onClick={handleCheckout}
+              onClick={() => setIsCartDrawerOpen(true)}
               className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
             >
               <ShoppingCart size={20} />
@@ -310,6 +292,16 @@ export default function Main() {
           </div>
         </div>
       </footer>
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartDrawerOpen}
+        onClose={() => setIsCartDrawerOpen(false)}
+        cartItems={getCartItemsArray()}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onCheckout={handleCheckout}
+      />
 
       {/* Call Modal */}
       {isCallModalOpen && (

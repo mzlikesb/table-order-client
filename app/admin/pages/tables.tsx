@@ -3,8 +3,9 @@ import { Table, Users, Filter, CheckCircle, Clock, AlertCircle, XCircle, Plus, T
 import { tableApi } from '../../lib/api';
 import type { Table as TableType, TableStatus } from '../../types/api';
 import AdminNav from '../components/adminNav';
+import ProtectedRoute from '../components/ProtectedRoute';
 
-export default function AdminTables() {
+function AdminTablesContent() {
   const [tables, setTables] = useState<TableType[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<TableStatus | 'all'>('all');
@@ -411,5 +412,13 @@ export default function AdminTables() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminTables() {
+  return (
+    <ProtectedRoute>
+      <AdminTablesContent />
+    </ProtectedRoute>
   );
 } 

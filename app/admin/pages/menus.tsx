@@ -4,8 +4,9 @@ import { menuApi } from '../../lib/api';
 import type { MenuItem } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
 import AddMenuModal from '../components/addMenuModal';
+import ProtectedRoute from '../components/ProtectedRoute';
 
-export default function AdminMenus() {
+function AdminMenusContent() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -328,5 +329,13 @@ export default function AdminMenus() {
         existingCategories={categories}
       />
     </AdminLayout>
+  );
+}
+
+export default function AdminMenus() {
+  return (
+    <ProtectedRoute>
+      <AdminMenusContent />
+    </ProtectedRoute>
   );
 } 

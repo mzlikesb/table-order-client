@@ -22,6 +22,7 @@ export default function CustomerMain() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
   const [menuStatusNotification, setMenuStatusNotification] = useState<string | null>(null);
+  const [tableId, setTableId] = useState<string>('1');
   
   // 타이머 관련 상태
   const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
@@ -29,9 +30,13 @@ export default function CustomerMain() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const previousMenuCountRef = useRef<number>(0);
 
-  // 테이블 ID (URL 파라미터에서 가져오거나 기본값 사용)
-  const tableId = new URLSearchParams(window.location.search).get('table') || '1';
-
+  // 테이블 ID 가져오기 함수
+  const getTableId = () => {
+    const urlTable = new URLSearchParams(window.location.search).get('table');
+    const localTable = localStorage.getItem('table_number');
+    return urlTable || localTable || '1';
+  };
+  
   // 타이머 리셋 함수
   const resetTimer = () => {
     if (timerRef.current) {
@@ -71,9 +76,13 @@ export default function CustomerMain() {
   };
 
   useEffect(() => {
+    // 테이블 번호 초기화
+    const currentTableId = getTableId();
+    setTableId(currentTableId);
+    
     // Socket.IO 초기화 및 테이블 룸 참가
     const socket = initSocket();
-    joinTableRoom(tableId);
+    joinTableRoom(currentTableId);
     setSocketConnected(socket.connected);
 
     // Socket.IO 연결 상태 모니터링
@@ -101,24 +110,26 @@ export default function CustomerMain() {
     // 초기 데이터 로드
     loadMenus();
     loadCategories();
-    
+
     // 타이머 시작
     resetTimer();
 
-    // 30초 간격으로 메뉴 상태 실시간 업데이트
-    const menuInterval = setInterval(() => {
-      console.log('메뉴 상태 실시간 업데이트 중...');
-      loadMenus();
-    }, 30000);
-
     // 클린업
     return () => {
-      clearInterval(menuInterval);
       clearTimer();
       offMenuUpdate(handleMenuUpdate);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
     };
+  }, []); // tableId 의존성 제거하여 한 번만 실행
+
+  // 테이블 번호 변경 감지
+  useEffect(() => {
+    const currentTableId = getTableId();
+    if (currentTableId !== tableId) {
+      setTableId(currentTableId);
+      console.log('테이블 번호 변경됨:', currentTableId);
+    }
   }, [tableId]);
 
   // 메뉴 개수 변화 감지하여 타이머 리셋

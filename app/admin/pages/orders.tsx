@@ -3,8 +3,9 @@ import { Clock, CheckCircle, XCircle, Eye, Filter, AlertCircle } from 'lucide-re
 import { orderApi } from '../../lib/api';
 import type { Order, OrderStatus } from '../../types/api';
 import AdminNav from '../components/adminNav';
+import ProtectedRoute from '../components/ProtectedRoute';
 
-export default function AdminOrders() {
+function AdminOrdersContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,5 +247,13 @@ export default function AdminOrders() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminOrders() {
+  return (
+    <ProtectedRoute>
+      <AdminOrdersContent />
+    </ProtectedRoute>
   );
 } 

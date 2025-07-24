@@ -4,8 +4,9 @@ import { callApi } from '../../lib/api';
 import { initSocket, joinStaffRoom, onCallUpdate, offCallUpdate } from '../../lib/socket';
 import type { Call, CallStatus, CallType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
+import ProtectedRoute from '../components/ProtectedRoute';
 
-export default function AdminCalls() {
+function AdminCallsContent() {
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -301,5 +302,13 @@ export default function AdminCalls() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+export default function AdminCalls() {
+  return (
+    <ProtectedRoute>
+      <AdminCallsContent />
+    </ProtectedRoute>
   );
 } 

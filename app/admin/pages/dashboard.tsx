@@ -4,8 +4,9 @@ import { orderApi, callApi, menuApi, tableApi } from '../../lib/api';
 import { initSocket, joinStaffRoom, onOrderUpdate, onCallUpdate, onMenuUpdate, onTableUpdate, offOrderUpdate, offCallUpdate, offMenuUpdate, offTableUpdate } from '../../lib/socket';
 import type { Order, Call, MenuItem, Table as TableType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
+import ProtectedRoute from '../components/ProtectedRoute';
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
@@ -310,5 +311,13 @@ export default function AdminDashboard() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <ProtectedRoute>
+      <AdminDashboardContent />
+    </ProtectedRoute>
   );
 } 

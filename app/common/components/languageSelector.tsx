@@ -1,6 +1,6 @@
 import React from 'react';
 import { Globe, Check } from 'lucide-react';
-import { i18n } from '../utils/i18n';
+import { i18n } from '../../utils/i18n';
 import {
   Drawer,
   DrawerClose,
@@ -10,8 +10,8 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from './ui/drawer';
-import { Button } from './ui/button';
+} from '../ui/drawer';
+import { Button } from '../ui/button';
 
 interface Language {
   code: string;

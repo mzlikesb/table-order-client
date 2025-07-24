@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Phone, ShoppingCart, Bell, Sun, Moon } from 'lucide-react';
-import MenuCard from '../../menus/components/menuCard';
-import CategoryList from '../../menus/components/categoryList';
-import LanguageSelector from '../../components/languageSelector';
-import CartDrawer from '../../components/cartDrawer';
-import CallModal from '../../components/callModal';
+import MenuCard from '../components/menuCard';
+import CategoryList from '../components/categoryList';
+import LanguageSelector from '../../common/components/languageSelector';
+import CartDrawer from '../components/cartDrawer';
+import CallModal from '../components/callModal';
 import type { MenuItem, Category, CartItem } from '../../types/menu';
 import type { CreateCallRequest } from '../../types/api';
 import { menuApi, orderApi, callApi } from '../../lib/api';

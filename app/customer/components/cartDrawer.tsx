@@ -6,9 +6,9 @@ import {
   DrawerTitle,
   DrawerFooter,
   DrawerClose,
-} from './ui/drawer';
-import type { CartDrawerProps } from '../types/menu';
-import { i18n } from '../utils/i18n';
+} from '../../common/ui/drawer';
+import type { CartDrawerProps } from '../../types/menu';
+import { i18n } from '../../utils/i18n';
 
 export default function CartDrawer({
   isOpen,

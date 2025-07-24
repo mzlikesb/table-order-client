@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Droplets, Utensils, Users, HelpCircle, Phone } from 'lucide-react';
-import type { CallType, CreateCallRequest } from '../types/api';
-import { i18n } from '../utils/i18n';
+import type { CallType, CreateCallRequest } from '../../types/api';
+import { i18n } from '../../utils/i18n';
 
 interface CallModalProps {
   isOpen: boolean;

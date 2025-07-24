@@ -16,6 +16,20 @@ body {
   }
 }
 
+/* 페이지 전환 시 깜빡임 방지 */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  /* 페이지 전환 시 깜빡임 방지 */
+  transition: background-color 0.2s ease-in-out;
+  /* 하드웨어 가속 활성화 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -99,6 +113,8 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* 페이지 전환 시 깜빡임 방지 */
+    transition: background-color 0.2s ease-in-out;
   }
 }
 
@@ -143,6 +159,22 @@ body {
   .table-accent-hover {
     @apply hover:bg-[hsl(var(--table-accent-light))];
   }
+}
+
+/* 페이지 페이드인 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
 }
 
 /* 다크 테마 강제 적용 (테스트용) */

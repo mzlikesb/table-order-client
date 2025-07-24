@@ -32,8 +32,8 @@ export class TableConfig {
         return this.tableNumber
       }
       
-      // 3. 기본값
-      return 'A1'
+      // 저장된 테이블이 없으면 빈 문자열 반환 (모달에서 선택하도록)
+      return ''
     }
     
     setTableNumber(tableNumber: string): void {

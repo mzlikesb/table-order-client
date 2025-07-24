@@ -67,7 +67,7 @@ export interface CreateCallRequest {
 // 테이블 관련 타입
 export interface Table {
   id: string;
-  number: number;
+  number: string; // 문자열로 변경 (DB에서 table_number가 문자열이므로)
   status: TableStatus;
   capacity: number;
   currentOrderCount?: number;

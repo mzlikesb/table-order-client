@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Users, Filter, CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react';
+import { Table, Users, Filter, CheckCircle, Clock, AlertCircle, XCircle, Plus, Trash2 } from 'lucide-react';
 import { tableApi } from '../../lib/api';
 import type { Table as TableType, TableStatus } from '../../types/api';
 import AdminNav from '../components/adminNav';
@@ -8,6 +8,10 @@ export default function AdminTables() {
   const [tables, setTables] = useState<TableType[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<TableStatus | 'all'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState('');
+  const [newTableCapacity, setNewTableCapacity] = useState(4);
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     loadTables();
@@ -40,6 +44,61 @@ export default function AdminTables() {
     } catch (error) {
       console.error('테이블 상태 변경 실패:', error);
       alert('테이블 상태 변경에 실패했습니다.');
+    }
+  };
+
+  const handleAddTable = async () => {
+    if (!newTableNumber.trim()) {
+      alert('테이블 번호를 입력해주세요.');
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      const newTable = {
+        id: Date.now().toString(), // 임시 ID
+        number: newTableNumber, // 문자열 그대로 사용
+        status: 'available' as TableStatus,
+        capacity: newTableCapacity,
+        currentOrderCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const response = await tableApi.createTable(newTable);
+      if (response.success) {
+        alert(`새 테이블이 추가되었습니다: ${newTableNumber}`);
+        setShowAddModal(false);
+        setNewTableNumber('');
+        setNewTableCapacity(4);
+        loadTables(); // 목록 새로고침
+      } else {
+        alert('테이블 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('테이블 추가 실패:', error);
+      alert('테이블 추가에 실패했습니다.');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleDeleteTable = async (tableId: string, tableNumber: string) => {
+    if (!confirm(`테이블 ${tableNumber}을(를) 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await tableApi.deleteTable(tableId);
+      if (response.success) {
+        alert(`테이블 ${tableNumber}이(가) 삭제되었습니다.`);
+        loadTables(); // 목록 새로고침
+      } else {
+        alert('테이블 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('테이블 삭제 실패:', error);
+      alert('테이블 삭제에 실패했습니다.');
     }
   };
 
@@ -171,10 +230,17 @@ export default function AdminTables() {
 
         {/* 테이블 목록 */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               테이블 목록 ({filteredTables.length}개)
             </h2>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>테이블 추가</span>
+            </button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
@@ -251,6 +317,15 @@ export default function AdminTables() {
                           점검
                         </button>
                       )}
+
+                      {/* 삭제 버튼 */}
+                      <button
+                        onClick={() => handleDeleteTable(table.id, table.number)}
+                        className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors ml-auto"
+                        title="테이블 삭제"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -259,6 +334,82 @@ export default function AdminTables() {
           </div>
         </div>
       </div>
+
+      {/* 테이블 추가 모달 */}
+      {showAddModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              새 테이블 추가
+            </h3>
+            
+            <div className="space-y-4">
+              {/* 테이블 번호 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  테이블 번호
+                </label>
+                <input
+                  type="text"
+                  value={newTableNumber}
+                  onChange={(e) => setNewTableNumber(e.target.value)}
+                  placeholder="예: A1, B2, VIP1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* 수용 인원 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  수용 인원
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={newTableCapacity}
+                  onChange={(e) => setNewTableCapacity(parseInt(e.target.value) || 4)}
+                  placeholder="수용 인원 입력"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  1~20명 사이로 입력해주세요
+                </p>
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAddTable}
+                disabled={isAdding || !newTableNumber.trim()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {isAdding ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    추가 중...
+                  </>
+                ) : (
+                  '추가'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

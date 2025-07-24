@@ -56,9 +56,28 @@ const transformServerCall = (serverData: any): Call => {
 
 // 서버 응답 데이터를 클라이언트 Table 타입으로 변환하는 함수
 const transformServerTable = (serverData: any): Table => {
+  // table_number를 문자열로 처리 (DB에서 문자열이므로)
+  const tableNumber = serverData.table_number;
+  let number: string;
+  
+  if (typeof tableNumber === 'string') {
+    number = tableNumber;
+  } else if (typeof tableNumber === 'number') {
+    number = tableNumber.toString(); // 숫자를 문자열로 변환
+  } else {
+    number = '1'; // null, undefined 등이면 기본값 '1'
+  }
+
+  console.log('테이블 데이터 변환:', {
+    original: serverData,
+    tableNumber: tableNumber,
+    converted: number,
+    type: typeof tableNumber
+  });
+
   return {
     id: serverData.id,
-    number: parseInt(serverData.table_number, 10),
+    number: number, // 문자열로 처리
     status: serverData.status as TableStatus,
     capacity: serverData.capacity || 4, // 기본값 4
     currentOrderCount: serverData.current_order_count || 0,
@@ -438,7 +457,7 @@ export const tableApi = {
     try {
       // 서버가 기대하는 형식으로 데이터 변환
       const serverTableData = {
-        table_number: tableData.number.toString(), // 숫자를 문자열로 변환
+        table_number: tableData.number, // 이미 문자열이므로 그대로 사용
         status: tableData.status
       };
 
@@ -474,7 +493,7 @@ export const tableApi = {
       // 서버가 기대하는 형식으로 데이터 변환
       const serverTableData: any = {};
       if (tableData.number !== undefined) {
-        serverTableData.table_number = tableData.number.toString();
+        serverTableData.table_number = tableData.number; // 이미 문자열이므로 그대로 사용
       }
       if (tableData.status !== undefined) {
         serverTableData.status = tableData.status;

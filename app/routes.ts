@@ -1,8 +1,8 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
-    index("customer/pages/main.tsx"),
-    route("/standby", "customer/pages/standby.tsx"),
+    index("customer/pages/standby.tsx"),
+    route("/menu", "customer/pages/main.tsx"),
     route("/admin", "admin/pages/dashboard.tsx"),
     route("/admin/menus", "admin/pages/menus.tsx"),
     route("/admin/orders", "admin/pages/orders.tsx"),

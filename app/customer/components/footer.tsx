@@ -40,7 +40,7 @@ export default function Footer({
             호출
           </button>
 
-          {/* 중앙 컨트롤 */}
+          {/* 오른쪽 컨트롤들 */}
           <div className="flex items-center gap-3">
             {/* 언어 변경 버튼 */}
             <LanguageSelector
@@ -56,26 +56,26 @@ export default function Footer({
             >
               {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-          </div>
 
-          {/* 장바구니 버튼 */}
-          <button
-            onClick={onCartClick}
-            className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
-          >
-            <ShoppingCart size={20} />
-            장바구니
-            {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {totalItems}
-              </span>
-            )}
-            {totalAmount > 0 && (
-              <span className="text-sm font-normal">
-                ₩{totalAmount.toLocaleString()}
-              </span>
-            )}
-          </button>
+            {/* 장바구니 버튼 */}
+            <button
+              onClick={onCartClick}
+              className="flex items-center gap-2 bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors relative"
+            >
+              <ShoppingCart size={20} />
+              장바구니
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+              {totalAmount > 0 && (
+                <span className="text-sm font-normal">
+                  ₩{totalAmount.toLocaleString()}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </footer>

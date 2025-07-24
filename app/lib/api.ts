@@ -93,24 +93,18 @@ export const menuApi = {
       if (menuData.image !== undefined) serverData.image_url = menuData.image;
       if (menuData.isAvailable !== undefined) serverData.is_available = menuData.isAvailable;
 
-      console.log('메뉴 수정 요청 데이터:', { id, menuData, serverData });
-
       const response = await fetch(`${API_BASE_URL}/menus/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(serverData),
       });
       
-      console.log('메뉴 수정 응답 상태:', response.status, response.statusText);
-      
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('메뉴 수정 서버 에러:', errorData);
         return { success: false, error: errorData.error || '메뉴 수정에 실패했습니다.' };
       }
       
       const data = await response.json();
-      console.log('메뉴 수정 성공 응답:', data);
       return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
       console.error('메뉴 수정 네트워크 에러:', error);

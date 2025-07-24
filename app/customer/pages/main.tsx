@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ShoppingCart, Phone, Sun, Moon, Languages } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Phone, Sun, Moon, Languages, Clock } from 'lucide-react';
 import CategoryList from '../components/categoryList';
 import MenuCard from '../components/menuCard';
 import CartDrawer from '../components/cartDrawer';
@@ -22,9 +22,53 @@ export default function CustomerMain() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
   const [menuStatusNotification, setMenuStatusNotification] = useState<string | null>(null);
+  
+  // 타이머 관련 상태
+  const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
+  const [showTimer, setShowTimer] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const previousMenuCountRef = useRef<number>(0);
 
   // 테이블 ID (URL 파라미터에서 가져오거나 기본값 사용)
   const tableId = new URLSearchParams(window.location.search).get('table') || '1';
+
+  // 타이머 리셋 함수
+  const resetTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    setTimeLeft(300);
+    setShowTimer(true);
+    
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // 시간 초과 시 모든 리스트 비우고 홈 화면으로 이동
+          clearInterval(timerRef.current!);
+          setMenus([]);
+          setCategories([]);
+          setCartItems([]);
+          setIsCartOpen(false);
+          setIsCallModalOpen(false);
+          setShowTimer(false);
+          
+          // 홈 화면으로 이동
+          window.location.href = '/';
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // 타이머 정리 함수
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setShowTimer(false);
+  };
 
   useEffect(() => {
     // Socket.IO 초기화 및 테이블 룸 참가
@@ -57,6 +101,9 @@ export default function CustomerMain() {
     // 초기 데이터 로드
     loadMenus();
     loadCategories();
+    
+    // 타이머 시작
+    resetTimer();
 
     // 30초 간격으로 메뉴 상태 실시간 업데이트
     const menuInterval = setInterval(() => {
@@ -67,11 +114,22 @@ export default function CustomerMain() {
     // 클린업
     return () => {
       clearInterval(menuInterval);
+      clearTimer();
       offMenuUpdate(handleMenuUpdate);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
     };
   }, [tableId]);
+
+  // 메뉴 개수 변화 감지하여 타이머 리셋
+  useEffect(() => {
+    if (menus.length > previousMenuCountRef.current) {
+      // 새 메뉴가 추가되었을 때 타이머 리셋
+      console.log('새 메뉴가 추가되어 타이머를 리셋합니다.');
+      resetTimer();
+    }
+    previousMenuCountRef.current = menus.length;
+  }, [menus.length]);
 
   // 다크모드 초기화
   useEffect(() => {
@@ -88,6 +146,13 @@ export default function CustomerMain() {
     const savedLanguage = localStorage.getItem('language') as Language || 'ko';
     setCurrentLanguage(savedLanguage);
   }, []);
+
+  // 시간 포맷팅 함수
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   const loadMenus = async () => {
     try {
@@ -274,7 +339,22 @@ export default function CustomerMain() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
+              {/* 타이머 표시 */}
+              {showTimer && (
+                <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg border ${
+                  timeLeft <= 60 
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300' 
+                    : timeLeft <= 120 
+                    ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                }`}>
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono font-bold text-lg">
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
+              )}
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {i18n.t('tableNumber')} {tableId}
               </span>

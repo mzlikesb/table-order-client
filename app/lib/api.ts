@@ -35,7 +35,7 @@ export const menuApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/menus`);
       const data = await response.json();
-      return { success: true, data: data.map(transformServerMenuItem) };
+      return { success: true, data: data.map((menu: any) => transformServerMenuItem(menu)) };
     } catch (error) {
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
@@ -93,40 +93,28 @@ export const menuApi = {
       if (menuData.image !== undefined) serverData.image_url = menuData.image;
       if (menuData.isAvailable !== undefined) serverData.is_available = menuData.isAvailable;
 
+      console.log('메뉴 수정 요청 데이터:', { id, menuData, serverData });
+
       const response = await fetch(`${API_BASE_URL}/menus/${id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(serverData),
       });
       
+      console.log('메뉴 수정 응답 상태:', response.status, response.statusText);
+      
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('메뉴 수정 서버 에러:', errorData);
         return { success: false, error: errorData.error || '메뉴 수정에 실패했습니다.' };
       }
       
       const data = await response.json();
+      console.log('메뉴 수정 성공 응답:', data);
       return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
+      console.error('메뉴 수정 네트워크 에러:', error);
       return { success: false, error: '메뉴 수정에 실패했습니다.' };
-    }
-  },
-
-  // 메뉴 품절 상태 변경
-  toggleAvailability: async (id: string): Promise<ApiResponse<MenuItem>> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/menus/${id}/availability`, {
-        method: 'PATCH',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '메뉴 상태 변경에 실패했습니다.' };
-      }
-      
-      const data = await response.json();
-      return { success: true, data: transformServerMenuItem(data) };
-    } catch (error) {
-      return { success: false, error: '메뉴 상태 변경에 실패했습니다.' };
     }
   },
 

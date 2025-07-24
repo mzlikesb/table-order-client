@@ -21,12 +21,13 @@ export default function CustomerMain() {
   const [darkMode, setDarkMode] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
+  const [menuStatusNotification, setMenuStatusNotification] = useState<string | null>(null);
 
   // 테이블 ID (URL 파라미터에서 가져오거나 기본값 사용)
   const tableId = new URLSearchParams(window.location.search).get('table') || '1';
 
   useEffect(() => {
-    // Socket.IO 초기화 및 테이블별 룸 참가
+    // Socket.IO 초기화 및 테이블 룸 참가
     const socket = initSocket();
     joinTableRoom(tableId);
     setSocketConnected(socket.connected);
@@ -57,15 +58,15 @@ export default function CustomerMain() {
     loadMenus();
     loadCategories();
 
-    // 폴링 백업 (Socket.IO 연결 실패 시)
-    const interval = setInterval(() => {
+    // 30초 간격으로 메뉴 상태 실시간 업데이트
+    const menuInterval = setInterval(() => {
+      console.log('메뉴 상태 실시간 업데이트 중...');
       loadMenus();
-      loadCategories();
     }, 30000);
 
     // 클린업
     return () => {
-      clearInterval(interval);
+      clearInterval(menuInterval);
       offMenuUpdate(handleMenuUpdate);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
@@ -92,7 +93,32 @@ export default function CustomerMain() {
     try {
       const response = await menuApi.getMenus();
       if (response.success) {
-        setMenus(response.data || []);
+        const newMenus = response.data || [];
+        
+        // 메뉴 상태 변경 감지
+        if (menus.length > 0) {
+          const soldOutMenus = newMenus.filter(newMenu => {
+            const oldMenu = menus.find(oldMenu => oldMenu.id === newMenu.id);
+            return oldMenu && oldMenu.isAvailable !== false && newMenu.isAvailable === false;
+          });
+          
+          const availableMenus = newMenus.filter(newMenu => {
+            const oldMenu = menus.find(oldMenu => oldMenu.id === newMenu.id);
+            return oldMenu && oldMenu.isAvailable === false && newMenu.isAvailable !== false;
+          });
+          
+          if (soldOutMenus.length > 0) {
+            setMenuStatusNotification(`${soldOutMenus.map(menu => menu.name).join(', ')} 메뉴가 품절되었습니다.`);
+            setTimeout(() => setMenuStatusNotification(null), 5000);
+          }
+          
+          if (availableMenus.length > 0) {
+            setMenuStatusNotification(`${availableMenus.map(menu => menu.name).join(', ')} 메뉴가 다시 판매됩니다.`);
+            setTimeout(() => setMenuStatusNotification(null), 5000);
+          }
+        }
+        
+        setMenus(newMenus);
       }
     } catch (error) {
       console.error('메뉴 로드 실패:', error);
@@ -256,6 +282,35 @@ export default function CustomerMain() {
           </div>
         </div>
       </header>
+
+      {/* 메뉴 상태 변경 알림 */}
+      {menuStatusNotification && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                {menuStatusNotification}
+              </p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setMenuStatusNotification(null)}
+                className="inline-flex text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
+              >
+                <span className="sr-only">닫기</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 메인 콘텐츠 */}
       <main className="max-w-7xl mx-auto px-4 py-8">

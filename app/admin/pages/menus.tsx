@@ -55,7 +55,11 @@ export default function AdminMenus() {
 
   const toggleMenuAvailability = async (menuId: string, currentStatus: boolean) => {
     try {
-      const response = await menuApi.updateMenu(menuId, { isAvailable: !currentStatus });
+      const newStatus = !currentStatus; // 현재 상태의 반대로 토글
+      console.log('메뉴 상태 변경 시도:', { menuId, currentStatus, newStatus });
+      
+      const response = await menuApi.updateMenu(menuId, { isAvailable: newStatus });
+      console.log('메뉴 상태 변경 응답:', response);
       
       if (response.success) {
         loadMenus(); // 메뉴 목록 새로고침

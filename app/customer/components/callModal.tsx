@@ -49,16 +49,21 @@ export default function CallModal({ isOpen, onClose, onSubmit, tableId }: CallMo
 
     setIsSubmitting(true);
     try {
-      await onSubmit({
+      const callData = {
         tableId,
         type: selectedType
-      });
+      };
+
+      console.log('호출 데이터 전송:', callData);
       
-      // 성공 후 모달 닫기
+      await onSubmit(callData);
+      
+      // 성공 시 상태 초기화
       setSelectedType(null);
       onClose();
     } catch (error) {
       console.error('호출 전송 실패:', error);
+      alert('호출 전송에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }

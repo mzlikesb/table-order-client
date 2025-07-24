@@ -279,16 +279,23 @@ export default function CustomerMain() {
 
   const handleCallSubmit = async (callData: CreateCallRequest) => {
     try {
+      console.log('호출 요청 시작:', callData);
+      
       const response = await callApi.createCall(callData);
       if (response.success) {
-        alert(i18n.t('callSuccess'));
+        alert(i18n.t('callSuccess') || '호출이 성공적으로 전송되었습니다!');
         setIsCallModalOpen(false);
+        
+        // 호출 성공 알림 표시
+        setMenuStatusNotification('호출이 성공적으로 전송되었습니다!');
+        setTimeout(() => setMenuStatusNotification(null), 5000);
       } else {
-        alert(i18n.t('callFailed'));
+        console.error('호출 실패:', response.error);
+        alert(response.error || i18n.t('callFailed') || '호출 전송에 실패했습니다.');
       }
     } catch (error) {
-      console.error('호출 실패:', error);
-      alert(i18n.t('callFailed'));
+      console.error('호출 처리 중 오류:', error);
+      alert(i18n.t('callFailed') || '호출 처리 중 오류가 발생했습니다.');
     }
   };
 

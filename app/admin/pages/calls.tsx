@@ -121,13 +121,15 @@ export default function AdminCalls() {
     switch (status) {
       case 'pending': return <Clock className="w-4 h-4 text-yellow-500" />;
       case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default: return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status: CallStatus) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     }
   };
 
@@ -135,6 +137,7 @@ export default function AdminCalls() {
     switch (status) {
       case 'pending': return '대기';
       case 'completed': return '완료';
+      default: return '알 수 없음';
     }
   };
 
@@ -255,7 +258,7 @@ export default function AdminCalls() {
                     <div className="flex items-center space-x-2">
                       {getStatusIcon(call.status)}
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(call.status)}`}>
-                        {getStatusText(call.status)}
+                        {getStatusText(call.status)} ({call.status})
                       </span>
                     </div>
                     <div>

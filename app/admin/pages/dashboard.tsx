@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Phone, Utensils, Table, TrendingUp, Clock, CheckCircle, AlertCircle, Store } from 'lucide-react';
 import { orderApi, callApi, menuApi, tableApi } from '../../lib/api';
-import { initSocket, joinStaffRoom, onOrderUpdate, onCallUpdate, onMenuUpdate, onTableUpdate, offOrderUpdate, offCallUpdate, offMenuUpdate, offTableUpdate } from '../../lib/socket';
+import { initSocket, joinStaffStoreRoom, onOrderUpdate, onCallUpdate, onMenuUpdate, onTableUpdate, offOrderUpdate, offCallUpdate, offMenuUpdate, offTableUpdate } from '../../lib/socket';
 import type { Order, Call, MenuItem, Table as TableType, Store as StoreType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -36,7 +36,9 @@ function AdminDashboardContent() {
 
     // Socket.IO 초기화 및 직원용 룸 참가
     const socket = initSocket();
-    joinStaffRoom();
+    if (storeInfo?.id) {
+      joinStaffStoreRoom(storeInfo.id);
+    }
     setSocketConnected(socket.connected);
 
     // Socket.IO 연결 상태 모니터링

@@ -49,6 +49,13 @@ export const joinStaffRoom = () => {
   console.log('직원용 룸에 참가');
 };
 
+// 스토어별 직원용 룸 참가 (부하 최적화)
+export const joinStaffStoreRoom = (storeId: string) => {
+  const socket = getSocket();
+  socket.emit('join-staff-store', storeId);
+  console.log(`스토어 ${storeId} 직원용 룸에 참가`);
+};
+
 // 테이블별 룸 참가
 export const joinTableRoom = (tableId: string) => {
   const socket = getSocket();

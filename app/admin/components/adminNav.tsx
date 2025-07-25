@@ -1,9 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Home, Utensils, ShoppingCart, Phone, Table, LogOut, User, Settings, Store } from 'lucide-react';
+import StoreSelector from '../../components/storeSelector';
+import type { Store as StoreType } from '../../types/api';
 
 export default function AdminNav() {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [adminUsername, setAdminUsername] = useState<string>('');
+  const [store, setStore] = useState<StoreType | null>(null);
+
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     // 클라이언트 사이드에서만 window 객체에 접근
@@ -14,18 +30,30 @@ export default function AdminNav() {
     if (username) {
       setAdminUsername(username);
     }
+
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
   }, []);
 
   const handleLogout = () => {
     if (confirm('로그아웃하시겠습니까?')) {
       localStorage.removeItem('admin_logged_in');
       localStorage.removeItem('admin_username');
+      localStorage.removeItem('admin_store');
       window.location.href = '/admin/login';
     }
   };
 
   const handleModeSelect = () => {
     window.location.href = '/admin/select-mode';
+  };
+
+  const handleStoreSelect = (selectedStore: StoreType) => {
+    setStore(selectedStore);
+    localStorage.setItem('admin_store', JSON.stringify(selectedStore));
+    // 페이지 새로고침하여 모든 컴포넌트에 스토어 변경 반영
+    window.location.reload();
   };
 
   const navItems = [
@@ -67,6 +95,28 @@ export default function AdminNav() {
                 </a>
               );
             })}
+          </div>
+
+          {/* 스토어 선택기 */}
+          <div className="flex items-center space-x-4">
+            <div className="w-48">
+              <StoreSelector
+                selectedStoreId={store?.id}
+                onStoreSelect={handleStoreSelect}
+                className="text-sm"
+              />
+            </div>
+            
+            {/* 선택된 스토어 정보 */}
+            {store && (
+              <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Store className="w-4 h-4 text-blue-500" />
+                <div className="text-sm">
+                  <div className="font-medium text-blue-900 dark:text-blue-100">{store.name}</div>
+                  <div className="text-xs text-blue-700 dark:text-blue-300">{store.code}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 사용자 정보 및 버튼들 */}

@@ -14,16 +14,37 @@ function AdminTablesContent() {
   const [newTableCapacity, setNewTableCapacity] = useState(4);
   const [isAdding, setIsAdding] = useState(false);
 
-  useEffect(() => {
-    loadTables();
-    // 더 빠른 실시간 업데이트 (10초마다)
-    const interval = setInterval(loadTables, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
-  const loadTables = async () => {
+  const [store, setStore] = useState<{ id: string; name: string } | null>(null);
+  const storeId = store?.id;
+
+  useEffect(() => {
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
+    // storeId가 바뀔 때마다 테이블 목록 새로고침
+    if (storeInfo?.id) {
+      loadTables(storeInfo.id);
+      const interval = setInterval(() => loadTables(storeInfo.id), 10000);
+      return () => clearInterval(interval);
+    }
+  }, [store?.id]);
+
+  const loadTables = async (storeId?: string) => {
     try {
-      const response = await tableApi.getTables();
+      const response = await tableApi.getTables(storeId);
       if (response.success) {
         setTables(response.data || []);
       }

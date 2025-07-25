@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Phone, Utensils, Table, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Phone, Utensils, Table, TrendingUp, Clock, CheckCircle, AlertCircle, Store } from 'lucide-react';
 import { orderApi, callApi, menuApi, tableApi } from '../../lib/api';
 import { initSocket, joinStaffRoom, onOrderUpdate, onCallUpdate, onMenuUpdate, onTableUpdate, offOrderUpdate, offCallUpdate, offMenuUpdate, offTableUpdate } from '../../lib/socket';
-import type { Order, Call, MenuItem, Table as TableType } from '../../types/api';
+import type { Order, Call, MenuItem, Table as TableType, Store as StoreType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -14,8 +14,26 @@ function AdminDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [store, setStore] = useState<StoreType | null>(null);
+
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
+
     // Socket.IO 초기화 및 직원용 룸 참가
     const socket = initSocket();
     joinStaffRoom();
@@ -79,14 +97,32 @@ function AdminDashboardContent() {
     };
   }, []);
 
+  // 스토어 변경 시 데이터 다시 로드
+  useEffect(() => {
+    if (store) {
+      loadDashboardData();
+    }
+  }, [store?.id]);
+
   const loadDashboardData = async () => {
     try {
       setError(null);
+      
+      // 스토어가 선택되지 않은 경우 기본 데이터만 로드
+      if (!store) {
+        setOrders([]);
+        setCalls([]);
+        setMenus([]);
+        setTables([]);
+        setLoading(false);
+        return;
+      }
+
       const [ordersRes, callsRes, menusRes, tablesRes] = await Promise.allSettled([
         orderApi.getAdminOrders(),
         callApi.getAdminCalls(),
         menuApi.getAdminMenus(),
-        tableApi.getTables()
+        tableApi.getTables(store.id)
       ]);
 
       // 주문 데이터 처리
@@ -128,14 +164,14 @@ function AdminDashboardContent() {
   const pendingOrders = orders.filter(order => order.status === 'pending');
   const preparingOrders = orders.filter(order => order.status === 'preparing');
   const pendingCalls = calls.filter(call => call.status === 'pending');
-  const availableMenus = menus.filter(menu => menu.isAvailable !== false);
-  const soldOutMenus = menus.filter(menu => menu.isAvailable === false);
+  const availableMenus = menus.filter(menu => menu.isAvailable);
+  const soldOutMenus = menus.filter(menu => !menu.isAvailable);
 
   const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={`p-3 rounded-lg ${color} text-white`}>
+          <Icon className="w-6 h-6" />
         </div>
         <div className="ml-4">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
@@ -160,8 +196,26 @@ function AdminDashboardContent() {
     <AdminLayout>
       {/* 헤더 */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">관리자 대시보드</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">현재 매장 상태를 한눈에 확인하세요</p>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">관리자 대시보드</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">현재 매장 상태를 한눈에 확인하세요</p>
+        </div>
+        
+        {/* 스토어 정보 표시 */}
+        {store && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-3">
+              <Store className="w-5 h-5 text-blue-500" />
+              <div>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">{store.name}</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">코드: {store.code}</p>
+                {store.address && (
+                  <p className="text-sm text-blue-600 dark:text-blue-400">{store.address}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* 실시간 상태 표시 */}
         <div className="mt-4 flex items-center space-x-4">
@@ -181,6 +235,18 @@ function AdminDashboardContent() {
           )}
         </div>
       </div>
+
+      {/* 스토어 미선택 안내 */}
+      {!store && (
+        <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-yellow-500 mr-2" />
+            <p className="text-yellow-700 dark:text-yellow-400">
+              상단 헤더에서 스토어를 선택하면 해당 스토어의 데이터를 확인할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 에러 메시지 */}
       {error && (
@@ -249,24 +315,23 @@ function AdminDashboardContent() {
           <div className="space-y-4">
             {['available', 'occupied', 'reserved', 'maintenance'].map((status) => {
               const count = tables.filter(table => table.status === status).length;
-              const statusLabels = {
-                available: '사용 가능',
-                occupied: '사용 중',
-                reserved: '예약됨',
-                maintenance: '점검 중'
+              const getStatusInfo = (status: string) => {
+                switch (status) {
+                  case 'available': return { name: '사용 가능', color: 'text-green-500', icon: CheckCircle };
+                  case 'occupied': return { name: '사용 중', color: 'text-blue-500', icon: Clock };
+                  case 'reserved': return { name: '예약됨', color: 'text-yellow-500', icon: AlertCircle };
+                  case 'maintenance': return { name: '점검 중', color: 'text-red-500', icon: AlertCircle };
+                  default: return { name: '알 수 없음', color: 'text-gray-500', icon: AlertCircle };
+                }
               };
-              const statusColors = {
-                available: 'text-green-500',
-                occupied: 'text-blue-500',
-                reserved: 'text-yellow-500',
-                maintenance: 'text-red-500'
-              };
+              const statusInfo = getStatusInfo(status);
+              const Icon = statusInfo.icon;
               
               return (
                 <div key={status} className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Table className={`w-5 h-5 mr-2 ${statusColors[status as keyof typeof statusColors]}`} />
-                    <span className="text-gray-700 dark:text-gray-300">{statusLabels[status as keyof typeof statusLabels]}</span>
+                    <Icon className={`w-5 h-5 ${statusInfo.color} mr-2`} />
+                    <span className="text-gray-700 dark:text-gray-300">{statusInfo.name}</span>
                   </div>
                   <span className="font-semibold text-gray-900 dark:text-white">{count}개</span>
                 </div>

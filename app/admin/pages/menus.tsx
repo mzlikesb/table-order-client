@@ -14,14 +14,33 @@ function AdminMenusContent() {
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const [store, setStore] = useState<{ id: string; name: string } | null>(null);
+  const storeId = store?.id;
+
   useEffect(() => {
-    loadMenus();
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
+    loadMenus(storeInfo?.id);
   }, []);
 
-  const loadMenus = async () => {
+  const loadMenus = async (storeId?: string) => {
     try {
       setError(null);
-      const response = await menuApi.getMenus();
+      const response = await menuApi.getMenus(storeId);
       
       if (response.success) {
         setMenus(response.data || []);
@@ -39,7 +58,14 @@ function AdminMenusContent() {
 
   const handleAddMenu = async (menuData: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const response = await menuApi.createMenu(menuData);
+      // storeId, categoryId 등 필수값 보장
+      const response = await menuApi.createMenu({
+        ...menuData,
+        storeId: storeId!,
+        categoryId: menuData.categoryId || '',
+        sortOrder: menuData.sortOrder || 0,
+        isAvailable: menuData.isAvailable !== false,
+      });
       
       if (response.success) {
         alert('메뉴가 성공적으로 추가되었습니다!');
@@ -56,9 +82,20 @@ function AdminMenusContent() {
 
   const toggleMenuAvailability = async (menuId: string, currentStatus: boolean) => {
     try {
-      const newStatus = !currentStatus; // 현재 상태의 반대로 토글
-      
-      const response = await menuApi.updateMenu(menuId, { isAvailable: newStatus });
+      const newStatus = !currentStatus;
+      // 메뉴 전체 정보 필요 (storeId 등)
+      const menu = menus.find(m => m.id === menuId);
+      if (!menu) return;
+      const response = await menuApi.updateMenu(menuId, {
+        storeId: menu.storeId,
+        categoryId: menu.categoryId,
+        name: menu.name,
+        price: menu.price,
+        sortOrder: menu.sortOrder,
+        isAvailable: newStatus,
+        description: menu.description,
+        image: menu.image,
+      });
       
       if (response.success) {
         loadMenus(); // 메뉴 목록 새로고침
@@ -93,7 +130,7 @@ function AdminMenusContent() {
   };
 
   const filteredMenus = menus.filter(menu => {
-    const categoryMatch = categoryFilter === 'all' || menu.category === categoryFilter;
+    const categoryMatch = categoryFilter === 'all' || menu.categoryId === categoryFilter;
     const availabilityMatch = availabilityFilter === 'all' || 
       (availabilityFilter === 'available' && menu.isAvailable !== false) ||
       (availabilityFilter === 'soldout' && menu.isAvailable === false);
@@ -101,11 +138,11 @@ function AdminMenusContent() {
   });
 
   // 서버에서 가져온 메뉴 데이터를 기반으로 카테고리 목록 생성
-  const categories = Array.from(new Set(menus.map(menu => menu.category))).sort();
+  const categories = Array.from(new Set(menus.map(menu => menu.categoryId))).sort();
 
   // 카테고리별 메뉴 개수 계산
   const categoryCounts = categories.reduce((acc, category) => {
-    acc[category] = menus.filter(menu => menu.category === category).length;
+    acc[category] = menus.filter(menu => menu.categoryId === category).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -281,7 +318,7 @@ function AdminMenusContent() {
                   
                   <div className="flex items-center justify-between">
                     <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
-                      {menu.category}
+                      {menu.categoryId}
                     </span>
                     
                     {/* 액션 버튼들 */}

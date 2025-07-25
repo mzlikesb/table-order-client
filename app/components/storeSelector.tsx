@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Store as StoreIcon, ChevronDown, Check } from 'lucide-react';
-import { storeApi } from '../lib/api';
+import { storeApi } from '../lib/api/index';
 import type { Store } from '../types/api';
 
 interface StoreSelectorProps {

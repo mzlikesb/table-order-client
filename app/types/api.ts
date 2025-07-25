@@ -1,14 +1,18 @@
 // 기존 MenuItem 타입 확장
 export interface MenuItem {
   id: string;
+  storeId: string;
+  categoryId: string;
   name: string;
+  description?: string;
   price: number;
   image?: string;
-  description?: string;
-  category: string;
-  isAvailable?: boolean; // 품절 여부
-  createdAt?: string;
-  updatedAt?: string;
+  isAvailable: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  categoryName?: string;
+  storeName?: string;
 }
 
 // 주문 관련 타입
@@ -67,10 +71,14 @@ export interface CreateCallRequest {
 // 테이블 관련 타입
 export interface Table {
   id: string;
-  number: string; // 문자열로 변경 (DB에서 table_number가 문자열이므로)
+  storeId: string;
+  number: string;
+  name?: string;
   status: TableStatus;
   capacity: number;
-  currentOrderCount?: number;
+  isActive: boolean;
+  storeName?: string;
+  currentOrderCount: number;
   createdAt: string;
   updatedAt: string;
 }

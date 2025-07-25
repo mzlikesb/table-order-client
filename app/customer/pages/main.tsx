@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Phone, Sun, Moon, Languages, Clock } from 'lucide-react';
+import { ShoppingCart, Phone, Sun, Moon, Languages, Clock, Store } from 'lucide-react';
 import CategoryList from '../components/categoryList';
 import MenuCard from '../components/menuCard';
 import CartDrawer from '../components/cartDrawer';
@@ -8,7 +8,7 @@ import Footer from '../components/footer';
 import { menuApi, orderApi, callApi } from '../../lib/api';
 import { initSocket, joinTableRoom, onMenuUpdate, offMenuUpdate } from '../../lib/socket';
 import type { MenuItem, Category, CartItem } from '../../types/menu';
-import type { Order, CreateCallRequest } from '../../types/api';
+import type { Order, CreateCallRequest, Store as StoreType } from '../../types/api';
 import { i18n, initializeLanguage, type Language } from '../../utils/i18n';
 
 export default function CustomerMain() {
@@ -23,6 +23,7 @@ export default function CustomerMain() {
   const [currentLanguage, setCurrentLanguage] = useState<Language>('ko');
   const [menuStatusNotification, setMenuStatusNotification] = useState<string | null>(null);
   const [tableId, setTableId] = useState<string>('1');
+  const [store, setStore] = useState<StoreType | null>(null);
   
   // 타이머 관련 상태
   const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
@@ -36,7 +37,23 @@ export default function CustomerMain() {
     const localTable = localStorage.getItem('table_number');
     return urlTable || localTable || '1';
   };
-  
+
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // storeId 추출
+  const storeId = store?.id;
+
   // 타이머 리셋 함수
   const resetTimer = () => {
     if (timerRef.current) {
@@ -76,6 +93,10 @@ export default function CustomerMain() {
   };
 
   useEffect(() => {
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
+    
     // 테이블 번호 초기화
     const currentTableId = getTableId();
     setTableId(currentTableId);
@@ -110,6 +131,8 @@ export default function CustomerMain() {
     // 초기 데이터 로드
     loadMenus();
     loadCategories();
+    // 테이블 정보도 필요하다면 여기에 추가
+    // loadTables();
 
     // 타이머 시작
     resetTimer();
@@ -146,58 +169,51 @@ export default function CustomerMain() {
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     setDarkMode(savedDarkMode);
+    
     if (savedDarkMode) {
       document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   }, []);
 
   // 언어 초기화
   useEffect(() => {
     initializeLanguage();
-    const savedLanguage = localStorage.getItem('language') as Language || 'ko';
-    setCurrentLanguage(savedLanguage);
+    const savedLanguage = localStorage.getItem('language') as Language;
+    if (savedLanguage) {
+      setCurrentLanguage(savedLanguage);
+    }
   }, []);
 
-  // 시간 포맷팅 함수
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const loadMenus = async () => {
     try {
-      const response = await menuApi.getMenus();
+      const response = await menuApi.getMenus(storeId);
       if (response.success) {
-        const newMenus = response.data || [];
-        
-        // 메뉴 상태 변경 감지
-        if (menus.length > 0) {
-          const soldOutMenus = newMenus.filter(newMenu => {
-            const oldMenu = menus.find(oldMenu => oldMenu.id === newMenu.id);
-            return oldMenu && oldMenu.isAvailable !== false && newMenu.isAvailable === false;
-          });
-          
-          const availableMenus = newMenus.filter(newMenu => {
-            const oldMenu = menus.find(oldMenu => oldMenu.id === newMenu.id);
-            return oldMenu && oldMenu.isAvailable === false && newMenu.isAvailable !== false;
-          });
-          
-          if (soldOutMenus.length > 0) {
-            setMenuStatusNotification(`${soldOutMenus.map(menu => menu.name).join(', ')} 메뉴가 품절되었습니다.`);
-            setTimeout(() => setMenuStatusNotification(null), 5000);
-          }
-          
-          if (availableMenus.length > 0) {
-            setMenuStatusNotification(`${availableMenus.map(menu => menu.name).join(', ')} 메뉴가 다시 판매됩니다.`);
-            setTimeout(() => setMenuStatusNotification(null), 5000);
-          }
-        }
-        
-        setMenus(newMenus);
+        // API 타입을 프론트 MenuItem 타입으로 변환
+        const menusForFrontend = (response.data || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          description: item.description,
+          category: item.categoryName || item.category || '',
+          isAvailable: item.isAvailable,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        }));
+        setMenus(menusForFrontend);
+      } else {
+        console.error('메뉴 로드 실패:', response.error);
       }
     } catch (error) {
-      console.error('메뉴 로드 실패:', error);
+      console.error('메뉴 로드 에러:', error);
     } finally {
       setLoading(false);
     }
@@ -205,17 +221,15 @@ export default function CustomerMain() {
 
   const loadCategories = async () => {
     try {
-      // 카테고리 데이터 (동적으로 생성)
-      const categoriesData: Category[] = [
-        { id: 'all', name: i18n.t('all') },
-        { id: 'main', name: i18n.t('main') },
-        { id: 'side', name: i18n.t('side') },
-        { id: 'drink', name: i18n.t('drink') },
-        { id: 'dessert', name: i18n.t('dessert') },
-      ];
-      setCategories(categoriesData);
+      // 카테고리 로드 로직 (필요시 구현)
+      const uniqueCategories = Array.from(new Set(menus.map(menu => menu.category)))
+        .map(category => ({
+          id: category,
+          name: category
+        }));
+      setCategories(uniqueCategories);
     } catch (error) {
-      console.error('카테고리 로드 실패:', error);
+      console.error('카테고리 로드 에러:', error);
     }
   };
 
@@ -290,23 +304,16 @@ export default function CustomerMain() {
 
   const handleCallSubmit = async (callData: CreateCallRequest) => {
     try {
-      console.log('호출 요청 시작:', callData);
-      
       const response = await callApi.createCall(callData);
       if (response.success) {
-        alert(i18n.t('callSuccess') || '호출이 성공적으로 전송되었습니다!');
+        alert(i18n.t('callSuccess'));
         setIsCallModalOpen(false);
-        
-        // 호출 성공 알림 표시
-        setMenuStatusNotification('호출이 성공적으로 전송되었습니다!');
-        setTimeout(() => setMenuStatusNotification(null), 5000);
       } else {
-        console.error('호출 실패:', response.error);
-        alert(response.error || i18n.t('callFailed') || '호출 전송에 실패했습니다.');
+        alert(response.error || i18n.t('callFailed'));
       }
     } catch (error) {
-      console.error('호출 처리 중 오류:', error);
-      alert(i18n.t('callFailed') || '호출 처리 중 오류가 발생했습니다.');
+      console.error('호출 실패:', error);
+      alert(i18n.t('callFailed'));
     }
   };
 
@@ -314,6 +321,7 @@ export default function CustomerMain() {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
     localStorage.setItem('darkMode', newDarkMode.toString());
+    
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -323,6 +331,7 @@ export default function CustomerMain() {
 
   const handleLanguageChange = (language: Language) => {
     setCurrentLanguage(language);
+    localStorage.setItem('language', language);
     i18n.setLanguage(language);
   };
 
@@ -333,8 +342,8 @@ export default function CustomerMain() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">{i18n.t('loadingMenu')}</p>
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">메뉴를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -345,11 +354,17 @@ export default function CustomerMain() {
       {/* 헤더 */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {i18n.t('restaurantName')}
+                {store ? store.name : i18n.t('restaurantName')}
               </h1>
+              {store && (
+                <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
+                  <Store className="w-4 h-4" />
+                  <span>{store.code}</span>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-gray-600 dark:text-gray-400">

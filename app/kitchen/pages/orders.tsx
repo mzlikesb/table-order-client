@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Eye, Filter, AlertCircle, Bell, Utensils } from 'lucide-react';
-import { orderApi } from '../../lib/api';
+import { orderApi } from '../../lib/api/index';
 import { initSocket, joinStaffRoom, onOrderUpdate, offOrderUpdate } from '../../lib/socket';
 import type { Order, OrderStatus } from '../../types/api';
 import KitchenNav from '../components/kitchenNav';

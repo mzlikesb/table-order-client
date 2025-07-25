@@ -20,20 +20,39 @@ export const transformServerMenuItem = (serverData: any): MenuItem => ({
 
 export const menuApi = {
   getMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
+    if (!storeId) return { success: true, data: [] };
     try {
-      const url = storeId
-        ? `${API_BASE_URL}/menus?store_id=${storeId}`
-        : `${API_BASE_URL}/menus`;
-      const response = await fetch(url);
+      const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 목록을 불러오는데 실패했습니다.' };
+      }
       const data = await response.json();
       return { success: true, data: data.map(transformServerMenuItem) };
     } catch (error) {
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
   },
+  getMenusByStore: async (storeId: string): Promise<ApiResponse<MenuItem[]>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '스토어별 메뉴 목록을 불러오는데 실패했습니다.' };
+      }
+      const data = await response.json();
+      return { success: true, data: data.map(transformServerMenuItem) };
+    } catch (error) {
+      return { success: false, error: '스토어별 메뉴 목록을 불러오는데 실패했습니다.' };
+    }
+  },
   getMenu: async (id: string): Promise<ApiResponse<MenuItem>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/menus/${id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '메뉴 정보를 불러오는데 실패했습니다.' };
+      }
       const data = await response.json();
       return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
@@ -116,18 +135,13 @@ export const menuApi = {
       return { success: false, error: '메뉴 삭제에 실패했습니다.' };
     }
   },
-  getMenusByStore: async (storeId: string): Promise<ApiResponse<MenuItem[]>> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`);
-      const data = await response.json();
-      return { success: true, data: data.map(transformServerMenuItem) };
-    } catch (error) {
-      return { success: false, error: '스토어별 메뉴 목록을 불러오는데 실패했습니다.' };
-    }
-  },
   getMenusByCategory: async (categoryId: string): Promise<ApiResponse<MenuItem[]>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/menus/category/${categoryId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '카테고리별 메뉴 목록을 불러오는데 실패했습니다.' };
+      }
       const data = await response.json();
       return { success: true, data: data.map(transformServerMenuItem) };
     } catch (error) {

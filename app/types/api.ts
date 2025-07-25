@@ -27,6 +27,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   tableId: string;
+  tableNumber?: string; // 테이블 번호 추가
   items: OrderItem[];
   totalAmount: number;
   status: OrderStatus;
@@ -39,11 +40,16 @@ export interface Order {
 export type OrderStatus = 'pending' | 'preparing' | 'completed' | 'cancelled';
 
 export interface CreateOrderRequest {
-  tableId: string;
+  store_id: string;
+  table_id: string;
   items: {
-    menuId: string;
+    menu_id: string;
     quantity: number;
+    unit_price: number;
+    notes?: string | null;
   }[];
+  total_amount: number;
+  notes?: string | null;
 }
 
 // 호출 관련 타입

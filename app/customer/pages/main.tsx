@@ -11,6 +11,8 @@ import type { MenuItem, Category, CartItem } from '../../types/menu';
 import type { Order, CreateCallRequest, Store as StoreType } from '../../types/api';
 import { i18n, initializeLanguage, type Language } from '../../utils/i18n';
 
+const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
+
 export default function CustomerMain() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -25,6 +27,7 @@ export default function CustomerMain() {
   const [tableId, setTableId] = useState<string>('1');
   const [store, setStore] = useState<StoreType | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [actualTableId, setActualTableId] = useState<string>(''); // 실제 테이블 ID
   
   // 타이머 관련 상태
   const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
@@ -54,6 +57,24 @@ export default function CustomerMain() {
 
   // storeId 추출
   const storeId = store?.id;
+
+  // 테이블 번호로 테이블 ID 찾기
+  const findTableIdByNumber = async (tableNumber: string, storeId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`);
+      
+      if (response.ok) {
+        const tables = await response.json();
+        const table = tables.find((t: any) => String(t.table_number) === tableNumber);
+        return table ? table.id : null;
+      } else {
+        console.error('테이블 API 에러:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('테이블 ID 찾기 실패:', error);
+    }
+    return null;
+  };
 
   // 타이머 리셋 함수
   const resetTimer = () => {
@@ -147,6 +168,17 @@ export default function CustomerMain() {
       console.log('스토어 ID 설정됨:', storeId);
       loadMenus();
       loadCategories();
+      
+      // 테이블 번호로 실제 테이블 ID 찾기
+      const findTableId = async () => {
+        const actualId = await findTableIdByNumber(tableId, storeId);
+        if (actualId) {
+          setActualTableId(actualId);
+        } else {
+          console.error('테이블 ID를 찾을 수 없음:', tableId);
+        }
+      };
+      findTableId();
     }
   }, [storeId]);
 
@@ -201,18 +233,20 @@ export default function CustomerMain() {
       const response = await menuApi.getMenus(storeId);
       if (response.success) {
         // API 타입을 프론트 MenuItem 타입으로 변환
-        const menusForFrontend = (response.data || []).map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          image: item.image,
-          description: item.description,
-          category: item.categoryName || item.category || '',
-          categoryId: item.categoryId || item.category_id,
-          isAvailable: item.isAvailable,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        }));
+        const menusForFrontend = (response.data || []).map((item: any) => {
+          return {
+            id: item.id,
+            name: item.name,
+            price: Math.round(Number(item.price)), // 문자열을 숫자로 변환하고 소수점 제거
+            image: item.image,
+            description: item.description,
+            category: item.categoryName || item.category || '',
+            categoryId: item.categoryId || item.category_id,
+            isAvailable: item.isAvailable,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          };
+        });
         setMenus(menusForFrontend);
       } else {
         console.error('메뉴 로드 실패:', response.error);
@@ -259,16 +293,16 @@ export default function CustomerMain() {
       if (existingItem) {
         return prev.map(item =>
           item.menuId === menu.id
-            ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.price }
+            ? { ...item, quantity: item.quantity + 1, totalPrice: Math.round((item.quantity + 1) * item.price) }
             : item
         );
       }
       return [...prev, { 
         menuId: menu.id, 
         menuName: menu.name, 
-        price: menu.price, 
+        price: Math.round(menu.price), 
         quantity: 1, 
-        totalPrice: menu.price,
+        totalPrice: Math.round(menu.price),
         image: menu.image 
       }];
     });
@@ -285,7 +319,7 @@ export default function CustomerMain() {
     }
     setCartItems(prev =>
       prev.map(item =>
-        item.menuId === menuId ? { ...item, quantity, totalPrice: quantity * item.price } : item
+        item.menuId === menuId ? { ...item, quantity, totalPrice: Math.round(quantity * item.price) } : item
       )
     );
   };
@@ -296,17 +330,30 @@ export default function CustomerMain() {
 
   const handleOrder = async () => {
     if (cartItems.length === 0) return;
+    if (!store?.id) {
+      alert('스토어 정보가 없습니다.');
+      return;
+    }
+    if (!actualTableId) {
+      alert('테이블 정보를 찾을 수 없습니다.');
+      return;
+    }
 
     try {
       const orderData = {
-        tableId,
+        store_id: store.id, // 스네이크 케이스로 변경
+        table_id: actualTableId,  // 실제 테이블 ID 사용
         items: cartItems.map(item => ({
-          menuId: item.menuId,
+          menu_id: item.menuId,     // 스네이크 케이스로 변경
           quantity: item.quantity,
-          price: item.price
+          unit_price: item.price,   // unit_price로 변경
+          notes: null
         })),
-        totalAmount: cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
+        total_amount: cartItems.reduce((sum, item) => sum + item.totalPrice, 0), // 스네이크 케이스로 변경
+        notes: null
       };
+
+      console.log('주문 데이터:', orderData);
 
       const response = await orderApi.createOrder(orderData);
       if (response.success) {
@@ -314,7 +361,7 @@ export default function CustomerMain() {
         clearCart();
         setIsCartOpen(false);
       } else {
-        alert(i18n.t('orderFailed'));
+        alert(response.error || i18n.t('orderFailed'));
       }
     } catch (error) {
       console.error('주문 실패:', error);
@@ -356,25 +403,12 @@ export default function CustomerMain() {
   };
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const totalAmount = Math.round(cartItems.reduce((sum, item) => sum + item.totalPrice, 0));
 
   // 카테고리별 메뉴 필터링
   const filteredMenus = menus.filter(menu => {
     if (selectedCategory === 'all') return true;
-    
-    const categoryMatch = String(menu.categoryId) === String(selectedCategory);
-    
-    // 디버깅 로그
-    console.log('필터링:', {
-      menuId: menu.id,
-      menuName: menu.name,
-      menuCategory: menu.category,
-      menuCategoryId: menu.categoryId,
-      selectedCategory: selectedCategory,
-      categoryMatch: categoryMatch
-    });
-    
-    return categoryMatch;
+    return String(menu.categoryId) === String(selectedCategory);
   });
 
   if (loading) {
@@ -473,7 +507,6 @@ export default function CustomerMain() {
               categories={categories}
               selectedCategory={selectedCategory}
               onCategorySelect={(categoryId) => {
-                console.log('카테고리 선택됨:', categoryId);
                 setSelectedCategory(categoryId);
               }}
             />

@@ -10,6 +10,12 @@ export const orderApi = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '주문 생성에 실패했습니다.' };
+      }
+      
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
@@ -36,9 +42,17 @@ export const orderApi = {
       return { success: false, error: '주문 취소에 실패했습니다.' };
     }
   },
-  getAdminOrders: async (): Promise<ApiResponse<Order[]>> => {
+  getAdminOrders: async (storeId?: string): Promise<ApiResponse<Order[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/orders`);
+      if (!storeId) {
+        return { success: false, error: '스토어 ID가 필요합니다.' };
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/orders/store/${storeId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '주문 목록을 불러오는데 실패했습니다.' };
+      }
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
@@ -47,11 +61,17 @@ export const orderApi = {
   },
   updateOrderStatus: async (orderId: string, status: OrderStatus): Promise<ApiResponse<Order>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: String(status) }), // 명시적으로 문자열로 변환
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '주문 상태 변경에 실패했습니다.' };
+      }
+      
       const data = await response.json();
       return { success: true, data };
     } catch (error) {

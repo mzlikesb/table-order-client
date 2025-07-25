@@ -11,20 +11,57 @@ function AdminOrdersContent() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [tableFilter, setTableFilter] = useState<string>('');
+  const [store, setStore] = useState<any>(null);
+
+  // 스토어 정보 가져오기
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
-    loadOrders();
-    // 더 빠른 실시간 업데이트 (5초마다)
-    const interval = setInterval(loadOrders, 5000);
-    return () => clearInterval(interval);
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
   }, []);
+
+  useEffect(() => {
+    if (store?.id) {
+      loadOrders();
+      // 더 빠른 실시간 업데이트 (5초마다)
+      const interval = setInterval(loadOrders, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [store?.id]);
 
   const loadOrders = async () => {
     try {
       setError(null);
-      const response = await orderApi.getAdminOrders();
+      const response = await orderApi.getAdminOrders(store?.id);
       if (response.success) {
-        setOrders(response.data || []);
+        // 백엔드 데이터를 프론트엔드 타입에 맞게 변환
+        const transformedOrders = (response.data || []).map((order: any) => {
+          return {
+            id: order.id,
+            tableId: order.table_id || order.tableId,
+            tableNumber: order.table_number || order.tableNumber, // 테이블 번호 추가
+            items: order.items || [],
+            totalAmount: Math.round(Number(order.total_amount || order.totalAmount || 0)), // 문자열을 숫자로 변환하고 소수점 제거
+            status: order.status,
+            createdAt: order.created_at || order.createdAt,
+            updatedAt: order.updated_at || order.updatedAt,
+            cancelledAt: order.cancelled_at || order.cancelledAt,
+            cancelReason: order.cancel_reason || order.cancelReason,
+          };
+        });
+        setOrders(transformedOrders);
       } else {
         console.warn('주문 목록 로드 실패:', response.error);
         setError('주문 목록을 불러오는데 실패했습니다.');
@@ -43,7 +80,7 @@ function AdminOrdersContent() {
       if (response.success) {
         loadOrders(); // 목록 새로고침
       } else {
-        alert('주문 상태 변경에 실패했습니다.');
+        alert(response.error || '주문 상태 변경에 실패했습니다.');
       }
     } catch (error) {
       console.error('주문 상태 변경 실패:', error);
@@ -92,6 +129,21 @@ function AdminOrdersContent() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400">주문 목록을 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!store) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <AdminNav />
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">스토어를 선택해주세요</h2>
+            <p className="text-gray-600 dark:text-gray-400">주문을 관리하려면 먼저 스토어를 선택해야 합니다.</p>
           </div>
         </div>
       </div>
@@ -177,7 +229,7 @@ function AdminOrdersContent() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
-                          테이블 {order.tableId}
+                          테이블 {order.tableNumber || order.tableId}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {new Date(order.createdAt).toLocaleString()}
@@ -186,7 +238,7 @@ function AdminOrdersContent() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        ₩{order.totalAmount.toLocaleString()}
+                        ₩{Math.round(order.totalAmount).toLocaleString()}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {order.items.length}개 메뉴
@@ -200,13 +252,13 @@ function AdminOrdersContent() {
                       {order.items.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{item.menuName}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{item.menuName || '메뉴명 없음'}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              ₩{item.price.toLocaleString()} × {item.quantity}
+                              ₩{Math.round(item.price || 0).toLocaleString()} × {item.quantity || 0}
                             </p>
                           </div>
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            ₩{item.totalPrice.toLocaleString()}
+                            ₩{Math.round(item.totalPrice || 0).toLocaleString()}
                           </p>
                         </div>
                       ))}

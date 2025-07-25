@@ -119,15 +119,28 @@ function AdminDashboardContent() {
       }
 
       const [ordersRes, callsRes, menusRes, tablesRes] = await Promise.allSettled([
-        orderApi.getAdminOrders(),
-        callApi.getAdminCalls(),
+        orderApi.getAdminOrders(store.id),
+        callApi.getAdminCalls(store.id),
         menuApi.getMenus(store.id),
         tableApi.getTables(store.id)
       ]);
 
       // 주문 데이터 처리
       if (ordersRes.status === 'fulfilled' && ordersRes.value.success) {
-        setOrders(ordersRes.value.data || []);
+        // 백엔드 데이터를 프론트엔드 타입에 맞게 변환
+        const transformedOrders = (ordersRes.value.data || []).map((order: any) => ({
+          id: order.id,
+          tableId: order.table_id || order.tableId,
+          tableNumber: order.table_number || order.tableNumber,
+          items: order.items || [],
+          totalAmount: Math.round(Number(order.total_amount || order.totalAmount || 0)), // 문자열을 숫자로 변환하고 소수점 제거
+          status: order.status,
+          createdAt: order.created_at || order.createdAt,
+          updatedAt: order.updated_at || order.updatedAt,
+          cancelledAt: order.cancelled_at || order.cancelledAt,
+          cancelReason: order.cancel_reason || order.cancelReason,
+        }));
+        setOrders(transformedOrders);
       } else {
         console.warn('주문 데이터 로드 실패:', ordersRes.status === 'rejected' ? ordersRes.reason : ordersRes.value?.error);
       }
@@ -354,7 +367,7 @@ function AdminDashboardContent() {
               <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
-                    테이블 {order.tableId} - ₩{order.totalAmount.toLocaleString()}
+                    테이블 {order.tableNumber || order.tableId} - ₩{order.totalAmount.toLocaleString()}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {new Date(order.createdAt).toLocaleString()}

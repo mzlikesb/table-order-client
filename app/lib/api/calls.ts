@@ -51,9 +51,10 @@ export const callApi = {
       return { success: false, error: '호출 생성에 실패했습니다.' };
     }
   },
-  getAdminCalls: async (): Promise<ApiResponse<Call[]>> => {
+  getAdminCalls: async (storeId?: string): Promise<ApiResponse<Call[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/calls`);
+      const url = storeId ? `${API_BASE_URL}/calls/store/${storeId}` : `${API_BASE_URL}/calls`;
+      const response = await fetch(url);
       if (!response.ok) {
         const errorData = await response.json();
         return { success: false, error: errorData.error || '호출 목록을 불러오는데 실패했습니다.' };

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Phone, CheckCircle, Clock, Droplets, Utensils, Users, HelpCircle, Filter, AlertCircle } from 'lucide-react';
 import { callApi } from '../../lib/api';
 import { initSocket, joinStaffRoom, onCallUpdate, offCallUpdate } from '../../lib/socket';
-import type { Call, CallStatus, CallType } from '../../types/api';
+import type { Call, CallStatus, CallType, Store as StoreType } from '../../types/api';
 import AdminLayout from '../components/adminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -14,8 +14,26 @@ function AdminCallsContent() {
   const [typeFilter, setTypeFilter] = useState<CallType | 'all'>('all');
   const [tableFilter, setTableFilter] = useState<string>('');
   const [socketConnected, setSocketConnected] = useState(false);
+  const [store, setStore] = useState<StoreType | null>(null);
+
+  // 스토어 정보 가져오기 함수
+  const getStoreInfo = () => {
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        return JSON.parse(savedStore);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
+    // 스토어 정보 초기화
+    const storeInfo = getStoreInfo();
+    setStore(storeInfo);
+
     // Socket.IO 초기화 및 직원용 룸 참가
     const socket = initSocket();
     joinStaffRoom();
@@ -58,10 +76,17 @@ function AdminCallsContent() {
     };
   }, []);
 
+  // 스토어 변경 시 데이터 다시 로드
+  useEffect(() => {
+    if (store) {
+      loadCalls();
+    }
+  }, [store?.id]);
+
   const loadCalls = async () => {
     try {
       setError(null);
-      const response = await callApi.getAdminCalls();
+      const response = await callApi.getAdminCalls(store?.id);
       if (response.success) {
         setCalls(response.data || []);
       } else {
@@ -102,19 +127,19 @@ function AdminCallsContent() {
 
   const getCallTypeIcon = (type: CallType) => {
     switch (type) {
-      case 'water': return <Droplets className="w-4 h-4 text-blue-500" />;
-      case 'plate': return <Utensils className="w-4 h-4 text-green-500" />;
-      case 'staff': return <Users className="w-4 h-4 text-purple-500" />;
-      case 'other': return <HelpCircle className="w-4 h-4 text-orange-500" />;
+      case 'service': return <Droplets className="w-4 h-4 text-blue-500" />;
+      case 'bill': return <Utensils className="w-4 h-4 text-green-500" />;
+      case 'help': return <Users className="w-4 h-4 text-purple-500" />;
+      case 'custom': return <HelpCircle className="w-4 h-4 text-orange-500" />;
     }
   };
 
   const getCallTypeText = (type: CallType) => {
     switch (type) {
-      case 'water': return '물';
-      case 'plate': return '그릇';
-      case 'staff': return '직원 호출';
-      case 'other': return '기타';
+      case 'service': return '서비스';
+      case 'bill': return '계산';
+      case 'help': return '도움';
+      case 'custom': return '기타';
     }
   };
 
@@ -215,10 +240,10 @@ function AdminCallsContent() {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">모든 유형</option>
-            <option value="water">물</option>
-            <option value="plate">그릇</option>
-            <option value="staff">직원 호출</option>
-            <option value="other">기타</option>
+            <option value="service">서비스</option>
+            <option value="bill">계산</option>
+            <option value="help">도움</option>
+            <option value="custom">기타</option>
           </select>
 
           {/* 테이블 필터 */}

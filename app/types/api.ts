@@ -116,4 +116,27 @@ export interface CallFilter {
   status?: CallStatus;
   type?: CallType;
   tableId?: string;
+}
+
+// 스토어 관련 타입
+export interface Store {
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  timezone: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuCategory {
+  id: string;
+  storeId: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 } 

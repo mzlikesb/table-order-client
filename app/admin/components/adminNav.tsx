@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, Utensils, ShoppingCart, Phone, Table, LogOut, User, Settings } from 'lucide-react';
+import { Home, Utensils, ShoppingCart, Phone, Table, LogOut, User, Settings, Store } from 'lucide-react';
 
 export default function AdminNav() {
   const [currentPath, setCurrentPath] = useState<string>('');
@@ -34,6 +34,7 @@ export default function AdminNav() {
     { path: '/admin/calls', label: '호출 관리', icon: Phone },
     { path: '/admin/menus', label: '메뉴 관리', icon: Utensils },
     { path: '/admin/tables', label: '테이블 관리', icon: Table },
+    { path: '/admin/stores', label: '스토어 관리', icon: Store },
   ];
 
   return (

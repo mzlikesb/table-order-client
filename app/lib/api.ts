@@ -9,7 +9,9 @@ import type {
   CallType,
   Table,
   TableStatus,
-  ApiResponse
+  Store,
+  ApiResponse,
+  MenuCategory
 } from '../types/api';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api'; // 백엔드 서버 URL
@@ -85,6 +87,31 @@ const transformServerTable = (serverData: any): Table => {
     updatedAt: serverData.updated_at
   };
 };
+
+// 서버 응답 데이터를 클라이언트 Store 타입으로 변환하는 함수
+const transformServerStore = (serverData: any): Store => {
+  return {
+    id: serverData.id,
+    code: serverData.code,
+    name: serverData.name,
+    address: serverData.address,
+    phone: serverData.phone,
+    timezone: serverData.timezone,
+    isActive: serverData.is_active,
+    createdAt: serverData.created_at,
+    updatedAt: serverData.updated_at
+  };
+};
+
+const transformServerMenuCategory = (data: any): MenuCategory => ({
+  id: data.id,
+  storeId: data.store_id,
+  name: data.name,
+  sortOrder: data.sort_order,
+  isActive: data.is_active,
+  createdAt: data.created_at,
+  updatedAt: data.updated_at,
+});
 
 // 메뉴 관련 API
 export const menuApi = {
@@ -415,9 +442,10 @@ export const callApi = {
 // 테이블 관련 API
 export const tableApi = {
   // 테이블 목록 조회
-  getTables: async (): Promise<ApiResponse<Table[]>> => {
+  getTables: async (storeId?: string): Promise<ApiResponse<Table[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tables`);
+      const url = storeId ? `${API_BASE_URL}/tables?store_id=${storeId}` : `${API_BASE_URL}/tables`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -565,4 +593,176 @@ export const tableApi = {
       return { success: false, error: '테이블 삭제에 실패했습니다.' };
     }
   }
+}; 
+
+// 스토어 관련 API
+export const storeApi = {
+  // 스토어 목록 조회
+  getStores: async (): Promise<ApiResponse<Store[]>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores`);
+      const data = await response.json();
+      return { success: true, data: data.map(transformServerStore) };
+    } catch (error) {
+      return { success: false, error: '스토어 목록을 불러오는데 실패했습니다.' };
+    }
+  },
+
+  // 특정 스토어 조회
+  getStore: async (storeId: string): Promise<ApiResponse<Store>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores/${storeId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '스토어 조회에 실패했습니다.' };
+      }
+      const data = await response.json();
+      return { success: true, data: transformServerStore(data) };
+    } catch (error) {
+      return { success: false, error: '스토어 조회에 실패했습니다.' };
+    }
+  },
+
+  // 스토어 추가
+  createStore: async (storeData: Omit<Store, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Store>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '스토어 추가에 실패했습니다.' };
+      }
+      
+      const data = await response.json();
+      return { success: true, data: transformServerStore(data) };
+    } catch (error) {
+      return { success: false, error: '스토어 추가에 실패했습니다.' };
+    }
+  },
+
+  // 스토어 수정
+  updateStore: async (storeId: string, storeData: Partial<Store>): Promise<ApiResponse<Store>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '스토어 수정에 실패했습니다.' };
+      }
+      
+      const data = await response.json();
+      return { success: true, data: transformServerStore(data) };
+    } catch (error) {
+      return { success: false, error: '스토어 수정에 실패했습니다.' };
+    }
+  },
+
+  // 스토어 삭제 (비활성화)
+  deleteStore: async (storeId: string): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || '스토어 삭제에 실패했습니다.' };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: '스토어 삭제에 실패했습니다.' };
+    }
+  },
+}; 
+
+export const menuCategoryApi = {
+  // 전체 조회 (스토어별)
+  getCategories: async (storeId?: string): Promise<ApiResponse<MenuCategory[]>> => {
+    try {
+      const url = storeId
+        ? `${API_BASE_URL}/menu-categories?store_id=${storeId}`
+        : `${API_BASE_URL}/menu-categories`;
+      const response = await fetch(url);
+      const data = await response.json();
+      return { success: true, data: data.map(transformServerMenuCategory) };
+    } catch (error) {
+      return { success: false, error: '카테고리 목록을 불러오는데 실패했습니다.' };
+    }
+  },
+
+  // 상세 조회
+  getCategory: async (id: string): Promise<ApiResponse<MenuCategory>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu-categories/${id}`);
+      const data = await response.json();
+      return { success: true, data: transformServerMenuCategory(data) };
+    } catch (error) {
+      return { success: false, error: '카테고리 정보를 불러오는데 실패했습니다.' };
+    }
+  },
+
+  // 추가
+  createCategory: async (category: { storeId: string; name: string; sortOrder?: number }): Promise<ApiResponse<MenuCategory>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store_id: category.storeId,
+          name: category.name,
+          sort_order: category.sortOrder,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) return { success: false, error: data.error || '카테고리 추가 실패' };
+      return { success: true, data: transformServerMenuCategory(data) };
+    } catch (error) {
+      return { success: false, error: '카테고리 추가에 실패했습니다.' };
+    }
+  },
+
+  // 수정
+  updateCategory: async (id: string, update: { name?: string; sortOrder?: number; isActive?: boolean }): Promise<ApiResponse<MenuCategory>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu-categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: update.name,
+          sort_order: update.sortOrder,
+          is_active: update.isActive,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) return { success: false, error: data.error || '카테고리 수정 실패' };
+      return { success: true, data: transformServerMenuCategory(data) };
+    } catch (error) {
+      return { success: false, error: '카테고리 수정에 실패했습니다.' };
+    }
+  },
+
+  // 삭제 (비활성화)
+  deleteCategory: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu-categories/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, error: data.error || '카테고리 삭제 실패' };
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: '카테고리 삭제에 실패했습니다.' };
+    }
+  },
 }; 

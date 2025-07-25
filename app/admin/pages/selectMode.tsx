@@ -1,40 +1,58 @@
 import { useState, useEffect } from 'react';
 import { Users, ShoppingCart, Table, ArrowRight, User, Settings, X } from 'lucide-react';
 import { tableApi } from '../../lib/api';
-import type { Table as TableType } from '../../types/api';
+import type { Table as TableType, Store } from '../../types/api';
 import ProtectedRoute from '../components/ProtectedRoute';
+import StoreSelector from '../../components/storeSelector';
 
 function SelectModeContent() {
+  const [store, setStore] = useState<Store | null>(null);
   const [tables, setTables] = useState<TableType[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTableModal, setShowTableModal] = useState(false);
 
   useEffect(() => {
-    loadTables();
+    // localStorage에서 store 정보 불러오기
+    const savedStore = localStorage.getItem('admin_store');
+    if (savedStore) {
+      try {
+        setStore(JSON.parse(savedStore));
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {
-    console.log('showTableModal 상태 변경:', showTableModal);
-  }, [showTableModal]);
+    if (store) {
+      loadTables(store.id);
+    } else {
+      setTables([]);
+    }
+  }, [store]);
 
-  const loadTables = async () => {
+  const loadTables = async (storeId: string) => {
+    setLoading(true);
     try {
       setError(null);
-      const response = await tableApi.getTables();
+      // storeId를 쿼리로 넘기는 API가 필요하다면 tableApi.getTables(storeId)로 수정
+      const response = await tableApi.getTables(storeId);
       if (response.success) {
         setTables(response.data || []);
       } else {
-        console.warn('테이블 목록 로드 실패:', response.error);
         setError('테이블 목록을 불러오는데 실패했습니다.');
       }
     } catch (error) {
-      console.error('테이블 목록 로드 실패:', error);
-      setError('테이블 목록을 불러오는데 실패했습니다. API 서버 연결을 확인해주세요.');
+      setError('테이블 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStoreSelect = (selected: Store) => {
+    setStore(selected);
+    localStorage.setItem('admin_store', JSON.stringify(selected));
+    setSelectedTable('');
   };
 
   const handleCustomerMode = (e?: React.MouseEvent) => {
@@ -47,7 +65,6 @@ function SelectModeContent() {
 
   const handleTableSelect = (tableNumber: string) => {
     setSelectedTable(tableNumber);
-    // 테이블 정보를 localStorage에 저장하고 고객 페이지로 이동
     localStorage.setItem('table_number', tableNumber);
     window.location.href = `/menu?table=${tableNumber}`;
   };
@@ -81,17 +98,6 @@ function SelectModeContent() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">테이블 정보를 불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -116,17 +122,35 @@ function SelectModeContent() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 스토어 선택 */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <Users className="w-5 h-5 mr-2" />스토어 선택
+            </h3>
+            <StoreSelector
+              selectedStoreId={store?.id}
+              onStoreSelect={handleStoreSelect}
+            />
+            {!store && (
+              <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-yellow-700 dark:text-yellow-400 text-sm">
+                  먼저 스토어를 선택하세요.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* 모드 선택 */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               모드 선택
             </h3>
-            
             <div className="space-y-4">
               {/* 고객 모드 */}
               <button
                 onClick={handleCustomerMode}
-                className="w-full p-6 rounded-lg border-2 border-green-500 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition-all duration-200 flex items-center justify-between"
+                disabled={!store}
+                className={`w-full p-6 rounded-lg border-2 border-green-500 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition-all duration-200 flex items-center justify-between ${!store ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="flex items-center">
                   <div className="p-3 rounded-lg bg-green-500 text-white mr-4">
@@ -150,9 +174,9 @@ function SelectModeContent() {
               {/* 관리자 모드 */}
               <button
                 onClick={handleAdminMode}
-                disabled={!selectedTable}
+                disabled={!store || !selectedTable}
                 className={`w-full p-6 rounded-lg border-2 transition-all duration-200 flex items-center justify-between ${
-                  selectedTable
+                  store && selectedTable
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
                     : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 cursor-not-allowed'
                 }`}
@@ -168,9 +192,9 @@ function SelectModeContent() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       주문 관리 및 매장 운영
                     </p>
-                    {selectedTable && (
+                    {store && selectedTable && (
                       <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                        테이블 {selectedTable} 관리
+                        {store.name} - 테이블 {selectedTable} 관리
                       </p>
                     )}
                   </div>
@@ -178,12 +202,11 @@ function SelectModeContent() {
                 <ArrowRight className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-
             {/* 선택 안내 */}
-            {!selectedTable && (
+            {(!store || !selectedTable) && (
               <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <p className="text-yellow-700 dark:text-yellow-400 text-sm">
-                  관리자 모드를 사용하려면 먼저 테이블을 선택해주세요.
+                  {store ? '테이블을 선택하세요.' : '먼저 스토어를 선택하세요.'}
                 </p>
               </div>
             )}
@@ -195,8 +218,16 @@ function SelectModeContent() {
               <Table className="w-5 h-5 mr-2" />
               테이블 선택
             </h3>
-            
-            {tables.length === 0 ? (
+            {!store ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400">먼저 스토어를 선택하세요.</p>
+              </div>
+            ) : loading ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">테이블 정보를 불러오는 중...</p>
+              </div>
+            ) : tables.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 dark:text-gray-400">등록된 테이블이 없습니다.</p>
               </div>
@@ -264,12 +295,19 @@ function SelectModeContent() {
                     <X className="w-6 h-6" />
                   </button>
                 </div>
-                
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   고객 모드에서 사용할 테이블을 선택하세요.
                 </p>
-
-                {tables.length === 0 ? (
+                {!store ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400">먼저 스토어를 선택하세요.</p>
+                  </div>
+                ) : loading ? (
+                  <div className="text-center py-8">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">테이블 정보를 불러오는 중...</p>
+                  </div>
+                ) : tables.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 dark:text-gray-400">등록된 테이블이 없습니다.</p>
                   </div>

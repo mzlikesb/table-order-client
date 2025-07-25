@@ -10,5 +10,6 @@ export default [
     route("/admin/orders", "admin/pages/orders.tsx"),
     route("/admin/calls", "admin/pages/calls.tsx"),
     route("/admin/tables", "admin/pages/tables.tsx"),
+    route("/admin/stores", "admin/pages/stores.tsx"),
     route("/kitchen", "kitchen/pages/orders.tsx")
 ] satisfies RouteConfig;

@@ -1,75 +1,91 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, EyeOff, Filter } from 'lucide-react';
-import { menuApi } from '../../lib/api';
-import type { MenuItem } from '../../types/api';
+import React, { useState, useEffect } from 'react';
+import { Plus, Filter, Eye, EyeOff, Edit, Trash2, Tag } from 'lucide-react';
 import AdminLayout from '../components/adminLayout';
-import AddMenuModal from '../components/addMenuModal';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AddMenuModal from '../components/addMenuModal';
+import AddCategoryModal from '../components/addCategoryModal';
+import { menuApi } from '../../lib/api/menus';
+import { menuCategoryApi } from '../../lib/api/menuCategories';
+import type { MenuItem, MenuCategory } from '../../types/api';
 
 function AdminMenusContent() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all');
+  const [categoryLoading, setCategoryLoading] = useState(false);
 
-  // 스토어 정보 가져오기 함수
+  // 스토어 정보 가져오기
   const getStoreInfo = () => {
-    const savedStore = localStorage.getItem('admin_store');
-    if (savedStore) {
-      try {
-        return JSON.parse(savedStore);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    const storeInfo = localStorage.getItem('admin_store');
+    return storeInfo ? JSON.parse(storeInfo) : null;
   };
 
-  const [store, setStore] = useState<{ id: string; name: string } | null>(null);
-  const storeId = store?.id;
+  const store = getStoreInfo();
 
-  useEffect(() => {
-    // 스토어 정보 초기화
-    const storeInfo = getStoreInfo();
-    setStore(storeInfo);
-    loadMenus(storeInfo?.id);
-  }, []);
-
+  // 메뉴 목록 로드
   const loadMenus = async (storeId?: string) => {
+    if (!storeId) return;
+    
+    setLoading(true);
     try {
-      setError(null);
       const response = await menuApi.getMenus(storeId);
-      
       if (response.success) {
         setMenus(response.data || []);
       } else {
-        console.warn('메뉴 목록 로드 실패:', response.error);
-        setError('메뉴 목록을 불러오는데 실패했습니다.');
+        console.error('메뉴 로드 실패:', response.error);
+        setMenus([]);
       }
     } catch (error) {
-      console.error('메뉴 목록 로드 실패:', error);
-      setError('메뉴 목록을 불러오는데 실패했습니다. API 서버 연결을 확인해주세요.');
+      console.error('메뉴 로드 실패:', error);
+      setMenus([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // 카테고리 목록 로드
+  const loadCategories = async (storeId?: string) => {
+    if (!storeId) return;
+    
+    setCategoryLoading(true);
+    try {
+      const response = await menuCategoryApi.getCategories(storeId);
+      if (response.success) {
+        setMenuCategories(response.data || []);
+      } else {
+        console.error('카테고리 로드 실패:', response.error);
+        setMenuCategories([]);
+      }
+    } catch (error) {
+      console.error('카테고리 로드 실패:', error);
+      setMenuCategories([]);
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    if (store?.id) {
+      loadMenus(store.id);
+      loadCategories(store.id);
+    }
+  }, [store?.id]);
+
+  // 메뉴 추가
   const handleAddMenu = async (menuData: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      // storeId, categoryId 등 필수값 보장
-      const response = await menuApi.createMenu({
-        ...menuData,
-        storeId: storeId!,
-        categoryId: menuData.categoryId || '',
-        sortOrder: menuData.sortOrder || 0,
-        isAvailable: menuData.isAvailable !== false,
-      });
+      // AddMenuModal에서 이미 storeId를 포함해서 보내므로 그대로 사용
+      const response = await menuApi.createMenu(menuData);
       
       if (response.success) {
         alert('메뉴가 성공적으로 추가되었습니다!');
-        loadMenus(); // 메뉴 목록 새로고침
+        // 새로 추가된 메뉴를 상태에 추가하여 즉시 화면 업데이트
+        setMenus(prev => [...prev, response.data!]);
       } else {
         console.error('메뉴 추가 실패:', response.error);
         alert(`메뉴 추가에 실패했습니다: ${response.error}`);
@@ -77,6 +93,60 @@ function AdminMenusContent() {
     } catch (error) {
       console.error('메뉴 추가 실패:', error);
       alert('메뉴 추가에 실패했습니다. API 서버 연결을 확인해주세요.');
+    }
+  };
+
+  // 카테고리 추가
+  const handleAddCategory = async (categoryName: string) => {
+    if (!store?.id) {
+      alert('스토어가 선택되지 않았습니다.');
+      return;
+    }
+
+    try {
+      const response = await menuCategoryApi.createCategory({
+        storeId: store.id,
+        name: categoryName,
+        sortOrder: menuCategories.length
+      });
+      
+      if (response.success) {
+        alert('카테고리가 성공적으로 추가되었습니다!');
+        setIsAddCategoryModalOpen(false);
+        // 새로 추가된 카테고리를 상태에 추가하여 즉시 화면 업데이트
+        setMenuCategories(prev => [...prev, response.data!]);
+      } else {
+        console.error('카테고리 추가 실패:', response.error);
+        alert(`카테고리 추가에 실패했습니다: ${response.error}`);
+      }
+    } catch (error) {
+      console.error('카테고리 추가 실패:', error);
+      alert('카테고리 추가에 실패했습니다. API 서버 연결을 확인해주세요.');
+    }
+  };
+
+  // 카테고리 삭제
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('정말로 이 카테고리를 삭제하시겠습니까? 이 카테고리의 모든 메뉴도 함께 삭제됩니다.')) {
+      return;
+    }
+
+    try {
+      const response = await menuCategoryApi.deleteCategory(categoryId);
+      
+      if (response.success) {
+        alert('카테고리가 성공적으로 삭제되었습니다!');
+        // 삭제된 카테고리를 상태에서 제거하여 즉시 화면 업데이트
+        setMenuCategories(prev => prev.filter(cat => cat.id !== categoryId));
+        // 해당 카테고리의 메뉴들도 함께 제거
+        setMenus(prev => prev.filter(menu => menu.categoryId !== categoryId));
+      } else {
+        console.error('카테고리 삭제 실패:', response.error);
+        alert(`카테고리 삭제에 실패했습니다: ${response.error}`);
+      }
+    } catch (error) {
+      console.error('카테고리 삭제 실패:', error);
+      alert('카테고리 삭제에 실패했습니다. API 서버 연결을 확인해주세요.');
     }
   };
 
@@ -98,7 +168,10 @@ function AdminMenusContent() {
       });
       
       if (response.success) {
-        loadMenus(); // 메뉴 목록 새로고침
+        // 해당 메뉴의 상태만 업데이트하여 즉시 화면 업데이트
+        setMenus(prev => prev.map(m => 
+          m.id === menuId ? { ...m, isAvailable: newStatus } : m
+        ));
       } else {
         console.error('메뉴 상태 변경 실패:', response.error);
         alert(`메뉴 상태 변경에 실패했습니다: ${response.error}`);
@@ -118,7 +191,8 @@ function AdminMenusContent() {
       const response = await menuApi.deleteMenu(menuId);
       
       if (response.success) {
-        loadMenus(); // 메뉴 목록 새로고침
+        // 삭제된 메뉴를 상태에서 제거하여 즉시 화면 업데이트
+        setMenus(prev => prev.filter(menu => menu.id !== menuId));
       } else {
         console.error('메뉴 삭제 실패:', response.error);
         alert(`메뉴 삭제에 실패했습니다: ${response.error}`);
@@ -130,21 +204,13 @@ function AdminMenusContent() {
   };
 
   const filteredMenus = menus.filter(menu => {
-    const categoryMatch = categoryFilter === 'all' || menu.categoryId === categoryFilter;
+    const categoryMatch = categoryFilter === 'all' || String(menu.categoryId) === String(categoryFilter);
     const availabilityMatch = availabilityFilter === 'all' || 
       (availabilityFilter === 'available' && menu.isAvailable !== false) ||
       (availabilityFilter === 'soldout' && menu.isAvailable === false);
+    
     return categoryMatch && availabilityMatch;
   });
-
-  // 서버에서 가져온 메뉴 데이터를 기반으로 카테고리 목록 생성
-  const categories = Array.from(new Set(menus.map(menu => menu.categoryId))).sort();
-
-  // 카테고리별 메뉴 개수 계산
-  const categoryCounts = categories.reduce((acc, category) => {
-    acc[category] = menus.filter(menu => menu.categoryId === category).length;
-    return acc;
-  }, {} as Record<string, number>);
 
   // 판매 상태별 메뉴 개수 계산
   const availableCount = menus.filter(menu => menu.isAvailable !== false).length;
@@ -169,24 +235,70 @@ function AdminMenusContent() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">메뉴 관리</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">메뉴를 관리하고 품절 상태를 변경하세요</p>
         </div>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>메뉴 추가</span>
-        </button>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => setIsAddCategoryModalOpen(true)}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2"
+          >
+            <Tag className="w-4 h-4" />
+            <span>카테고리 추가</span>
+          </button>
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>메뉴 추가</span>
+          </button>
+        </div>
       </div>
 
-      {/* 에러 메시지 */}
-      {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-            <p className="text-red-700 dark:text-red-400">{error}</p>
+      {/* 카테고리 관리 섹션 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <Tag className="w-5 h-5 mr-2" />
+          카테고리 관리
+        </h2>
+        
+        {categoryLoading ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">카테고리 로딩 중...</p>
           </div>
-        </div>
-      )}
+        ) : menuCategories.length === 0 ? (
+          <div className="text-center py-8">
+            <Tag className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400">등록된 카테고리가 없습니다.</p>
+            <button 
+              onClick={() => setIsAddCategoryModalOpen(true)}
+              className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              첫 번째 카테고리 추가
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {menuCategories.map((category) => {
+              const menuCount = menus.filter(menu => menu.categoryId === category.id).length;
+              return (
+                <div key={category.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900 dark:text-white">{category.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{menuCount}개의 메뉴</p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="카테고리 삭제"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* 통계 정보 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -242,9 +354,9 @@ function AdminMenusContent() {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">모든 카테고리 ({menus.length}개)</option>
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category} ({categoryCounts[category]}개)
+            {menuCategories.map(category => (
+              <option key={category.id} value={category.id}>
+                {category.name} ({menus.filter(menu => menu.categoryId === category.id).length}개)
               </option>
             ))}
           </select>
@@ -306,7 +418,7 @@ function AdminMenusContent() {
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{menu.name}</h3>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                      ₩{menu.price.toLocaleString()}
+                      ₩{Math.round(menu.price).toLocaleString()}
                     </span>
                   </div>
                   
@@ -318,7 +430,7 @@ function AdminMenusContent() {
                   
                   <div className="flex items-center justify-between">
                     <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
-                      {menu.categoryId}
+                      {menuCategories.find(cat => cat.id === menu.categoryId)?.name || '카테고리 없음'}
                     </span>
                     
                     {/* 액션 버튼들 */}
@@ -363,7 +475,14 @@ function AdminMenusContent() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddMenu}
-        existingCategories={categories}
+        storeId={store?.id}
+      />
+
+      {/* 카테고리 추가 모달 */}
+      <AddCategoryModal
+        isOpen={isAddCategoryModalOpen}
+        onClose={() => setIsAddCategoryModalOpen(false)}
+        onAdd={handleAddCategory}
       />
     </AdminLayout>
   );

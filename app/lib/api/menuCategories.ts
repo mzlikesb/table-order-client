@@ -19,6 +19,11 @@ export const menuCategoryApi = {
         ? `${API_BASE_URL}/menu-categories?store_id=${storeId}`
         : `${API_BASE_URL}/menu-categories`;
       const response = await fetch(url);
+      
+      if (!response.ok) {
+        return { success: false, error: '카테고리 목록을 불러오는데 실패했습니다.' };
+      }
+      
       const data = await response.json();
       return { success: true, data: data.map(transformServerMenuCategory) };
     } catch (error) {
@@ -40,13 +45,18 @@ export const menuCategoryApi = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          store_id: category.storeId,
+          store_id: Number(category.storeId),
           name: category.name,
-          sort_order: category.sortOrder,
+          sort_order: category.sortOrder || 0,
         }),
       });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, error: data.error || '카테고리 추가 실패' };
+      }
+      
       const data = await response.json();
-      if (!response.ok) return { success: false, error: data.error || '카테고리 추가 실패' };
       return { success: true, data: transformServerMenuCategory(data) };
     } catch (error) {
       return { success: false, error: '카테고리 추가에 실패했습니다.' };

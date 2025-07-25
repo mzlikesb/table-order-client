@@ -62,22 +62,27 @@ export const menuApi = {
   createMenu: async (menuData: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'storeName'>): Promise<ApiResponse<MenuItem>> => {
     try {
       const serverData = {
-        store_id: menuData.storeId,
-        category_id: menuData.categoryId,
+        store_id: Number(menuData.storeId),
+        category_id: Number(menuData.categoryId), // 숫자로 변환
         name: menuData.name,
-        description: menuData.description,
-        price: menuData.price,
-        image_url: menuData.image,
+        description: menuData.description || null,
+        price: Number(menuData.price),
+        image_url: menuData.image || null,
         is_available: menuData.isAvailable,
-        sort_order: menuData.sortOrder,
+        sort_order: Number(menuData.sortOrder),
       };
+      
+
+      
       const response = await fetch(`${API_BASE_URL}/menus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(serverData),
       });
       const data = await response.json();
-      if (!response.ok) return { success: false, error: data.error || '메뉴 추가 실패' };
+      if (!response.ok) {
+        return { success: false, error: data.error || '메뉴 추가 실패' };
+      }
       return { success: true, data: transformServerMenuItem(data) };
     } catch (error) {
       return { success: false, error: '메뉴 추가에 실패했습니다.' };

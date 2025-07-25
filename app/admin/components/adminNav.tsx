@@ -114,14 +114,6 @@ export default function AdminNav() {
                 className="text-sm"
               />
             </div>
-            
-            {/* 선택된 스토어 정보 (간단하게) */}
-            {store && (
-              <div className="hidden lg:flex items-center space-x-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-                <Store className="w-3 h-3 text-blue-500" />
-                <span className="font-medium text-blue-900 dark:text-blue-100">{store.name}</span>
-              </div>
-            )}
 
             {/* 사용자 정보 및 버튼들 */}
             <div className="hidden md:flex items-center space-x-2">

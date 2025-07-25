@@ -121,7 +121,7 @@ function AdminDashboardContent() {
       const [ordersRes, callsRes, menusRes, tablesRes] = await Promise.allSettled([
         orderApi.getAdminOrders(),
         callApi.getAdminCalls(),
-        menuApi.getAdminMenus(),
+        menuApi.getMenus(store.id),
         tableApi.getTables(store.id)
       ]);
 

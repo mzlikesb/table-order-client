@@ -8,36 +8,37 @@ interface CallModalProps {
   onClose: () => void;
   onSubmit: (callData: CreateCallRequest) => void;
   tableId: string;
+  storeId: string; // storeId 추가
 }
 
 const getCallTypes = () => [
   {
-    type: 'water' as CallType,
+    type: 'service' as CallType,
     name: i18n.t('water'),
-    icon: <Droplets size={24} />,
-    description: i18n.t('waterDescription')
+    description: i18n.t('waterDescription'),
+    icon: <Droplets size={24} />
   },
   {
-    type: 'plate' as CallType,
+    type: 'bill' as CallType,
     name: i18n.t('plate'),
-    icon: <Utensils size={24} />,
-    description: i18n.t('plateDescription')
+    description: i18n.t('plateDescription'),
+    icon: <Utensils size={24} />
   },
   {
-    type: 'staff' as CallType,
-    name: i18n.t('staffCall'),
-    icon: <Users size={24} />,
-    description: i18n.t('staffCallDescription')
+    type: 'help' as CallType,
+    name: i18n.t('staff'),
+    description: i18n.t('staffDescription'),
+    icon: <Users size={24} />
   },
   {
-    type: 'other' as CallType,
+    type: 'custom' as CallType,
     name: i18n.t('other'),
-    icon: <HelpCircle size={24} />,
-    description: i18n.t('otherDescription')
+    description: i18n.t('otherDescription'),
+    icon: <HelpCircle size={24} />
   }
 ];
 
-export default function CallModal({ isOpen, onClose, onSubmit, tableId }: CallModalProps) {
+export default function CallModal({ isOpen, onClose, onSubmit, tableId, storeId }: CallModalProps) {
   const [selectedType, setSelectedType] = useState<CallType | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,6 +51,7 @@ export default function CallModal({ isOpen, onClose, onSubmit, tableId }: CallMo
     setIsSubmitting(true);
     try {
       const callData = {
+        storeId,
         tableId,
         type: selectedType
       };

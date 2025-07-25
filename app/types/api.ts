@@ -56,6 +56,7 @@ export interface CreateOrderRequest {
 export interface Call {
   id: string;
   tableId: string;
+  tableNumber?: string; // 테이블 번호 추가
   type: CallType;
   status: CallStatus;
   message?: string;
@@ -64,11 +65,12 @@ export interface Call {
   completedAt?: string;
 }
 
-export type CallType = 'water' | 'plate' | 'staff' | 'other';
+export type CallType = 'service' | 'bill' | 'help' | 'custom';
 
 export type CallStatus = 'pending' | 'completed';
 
 export interface CreateCallRequest {
+  storeId: string;
   tableId: string;
   type: CallType;
   message?: string;

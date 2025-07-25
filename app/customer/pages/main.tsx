@@ -561,7 +561,8 @@ export default function CustomerMain() {
         isOpen={isCallModalOpen}
         onClose={() => setIsCallModalOpen(false)}
         onSubmit={handleCallSubmit}
-        tableId={tableId}
+        tableId={actualTableId || tableId}
+        storeId={storeId || ''}
       />
     </div>
   );

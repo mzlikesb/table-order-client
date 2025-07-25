@@ -264,7 +264,7 @@ function AdminCallsContent() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">
-                        테이블 {call.tableId}
+                        테이블 {call.tableNumber || call.tableId}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {new Date(call.createdAt).toLocaleString()}

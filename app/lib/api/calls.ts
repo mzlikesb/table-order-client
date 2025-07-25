@@ -27,23 +27,26 @@ export const transformServerCall = (serverData: any): Call => {
 export const callApi = {
   createCall: async (callData: CreateCallRequest): Promise<ApiResponse<Call>> => {
     try {
-      const tableIdNumber = parseInt(callData.tableId);
-      const isTableIdNumber = !isNaN(tableIdNumber);
       const serverCallData = {
-        table_id: isTableIdNumber ? tableIdNumber : 1,
-        request_content: callData.type
+        store_id: callData.storeId,
+        table_id: callData.tableId,
+        call_type: callData.type,
+        message: null // 백엔드에서 message는 선택사항
       };
+      
       const response = await fetch(`${API_BASE_URL}/calls`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(serverCallData),
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
-        return { success: false, error: errorData.error || errorData.message || '호출 생성에 실패했습니다.' };
+        return { success: false, error: errorData.error || '호출 생성에 실패했습니다.' };
       }
+      
       const data = await response.json();
-      return { success: true, data: transformServerCall(data) };
+      return { success: true, data };
     } catch (error) {
       return { success: false, error: '호출 생성에 실패했습니다.' };
     }
@@ -56,32 +59,45 @@ export const callApi = {
         return { success: false, error: errorData.error || '호출 목록을 불러오는데 실패했습니다.' };
       }
       const data = await response.json();
-      return { success: true, data: data.map(transformServerCall) };
+      
+      // 백엔드 데이터를 프론트엔드 타입에 맞게 변환
+      const transformedCalls = data.map((call: any) => ({
+        id: call.id,
+        tableId: call.table_id || call.tableId,
+        tableNumber: call.table_number || call.tableNumber, // 테이블 번호 추가
+        type: call.call_type || call.type,
+        status: call.status,
+        message: call.message,
+        createdAt: call.created_at || call.createdAt,
+        updatedAt: call.updated_at || call.updatedAt,
+        completedAt: call.completed_at || call.completedAt,
+      }));
+      
+      return { success: true, data: transformedCalls };
     } catch (error) {
       return { success: false, error: '호출 목록을 불러오는데 실패했습니다.' };
     }
   },
-  updateCallStatus: async (callId: string, status: CallStatus): Promise<ApiResponse<Call>> => {
+  updateCallStatus: async (callId: string, status: CallStatus, respondedBy?: string): Promise<ApiResponse<Call>> => {
     try {
-      const transformToServerStatus = (clientStatus: CallStatus): string => {
-        switch (clientStatus) {
-          case 'pending': return 'waiting';
-          case 'completed': return 'completed';
-          default: return 'waiting';
-        }
-      };
-      const serverStatus = transformToServerStatus(status);
+      const body: any = { status: String(status) };
+      if (respondedBy) {
+        body.responded_by = respondedBy;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/calls/${callId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: serverStatus }),
+        body: JSON.stringify(body),
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         return { success: false, error: errorData.error || '호출 상태 변경에 실패했습니다.' };
       }
+      
       const data = await response.json();
-      return { success: true, data: transformServerCall(data) };
+      return { success: true, data };
     } catch (error) {
       return { success: false, error: '호출 상태 변경에 실패했습니다.' };
     }

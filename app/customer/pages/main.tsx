@@ -5,7 +5,7 @@ import MenuCard from '../components/menuCard';
 import CartDrawer from '../components/cartDrawer';
 import CallModal from '../components/callModal';
 import Footer from '../components/footer';
-import { menuApi, orderApi, callApi } from '../../lib/api';
+import { menuApi, orderApi, callApi, menuCategoryApi } from '../../lib/api';
 import { initSocket, joinTableRoom, onMenuUpdate, offMenuUpdate } from '../../lib/socket';
 import type { MenuItem, Category, CartItem } from '../../types/menu';
 import type { Order, CreateCallRequest, Store as StoreType } from '../../types/api';
@@ -24,6 +24,7 @@ export default function CustomerMain() {
   const [menuStatusNotification, setMenuStatusNotification] = useState<string | null>(null);
   const [tableId, setTableId] = useState<string>('1');
   const [store, setStore] = useState<StoreType | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   // 타이머 관련 상태
   const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
@@ -128,12 +129,6 @@ export default function CustomerMain() {
 
     onMenuUpdate(handleMenuUpdate);
 
-    // 초기 데이터 로드
-    loadMenus();
-    loadCategories();
-    // 테이블 정보도 필요하다면 여기에 추가
-    // loadTables();
-
     // 타이머 시작
     resetTimer();
 
@@ -144,7 +139,16 @@ export default function CustomerMain() {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
     };
-  }, []); // tableId 의존성 제거하여 한 번만 실행
+  }, []); // 초기 설정만
+
+  // storeId가 설정되면 데이터 로드
+  useEffect(() => {
+    if (storeId) {
+      console.log('스토어 ID 설정됨:', storeId);
+      loadMenus();
+      loadCategories();
+    }
+  }, [storeId]);
 
   // 테이블 번호 변경 감지
   useEffect(() => {
@@ -204,6 +208,7 @@ export default function CustomerMain() {
           image: item.image,
           description: item.description,
           category: item.categoryName || item.category || '',
+          categoryId: item.categoryId || item.category_id,
           isAvailable: item.isAvailable,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
@@ -221,15 +226,30 @@ export default function CustomerMain() {
 
   const loadCategories = async () => {
     try {
-      // 카테고리 로드 로직 (필요시 구현)
+      const response = await menuCategoryApi.getCategories(storeId);
+      if (response.success) {
+        setCategories(response.data || []);
+      } else {
+        console.error('카테고리 로드 실패:', response.error);
+        // API 실패 시 메뉴에서 카테고리 추출하는 fallback
+        const uniqueCategories = Array.from(new Set(menus.map(menu => menu.category)))
+          .filter(category => category)
+          .map(category => ({
+            id: category,
+            name: category
+          }));
+        setCategories(uniqueCategories);
+      }
+    } catch (error) {
+      console.error('카테고리 로드 에러:', error);
+      // 에러 시 메뉴에서 카테고리 추출하는 fallback
       const uniqueCategories = Array.from(new Set(menus.map(menu => menu.category)))
+        .filter(category => category)
         .map(category => ({
           id: category,
           name: category
         }));
       setCategories(uniqueCategories);
-    } catch (error) {
-      console.error('카테고리 로드 에러:', error);
     }
   };
 
@@ -338,6 +358,25 @@ export default function CustomerMain() {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
+  // 카테고리별 메뉴 필터링
+  const filteredMenus = menus.filter(menu => {
+    if (selectedCategory === 'all') return true;
+    
+    const categoryMatch = String(menu.categoryId) === String(selectedCategory);
+    
+    // 디버깅 로그
+    console.log('필터링:', {
+      menuId: menu.id,
+      menuName: menu.name,
+      menuCategory: menu.category,
+      menuCategoryId: menu.categoryId,
+      selectedCategory: selectedCategory,
+      categoryMatch: categoryMatch
+    });
+    
+    return categoryMatch;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -432,9 +471,10 @@ export default function CustomerMain() {
           <div className="lg:col-span-1">
             <CategoryList
               categories={categories}
-              selectedCategory="all"
+              selectedCategory={selectedCategory}
               onCategorySelect={(categoryId) => {
-                // 카테고리 필터링 로직 (필요시 구현)
+                console.log('카테고리 선택됨:', categoryId);
+                setSelectedCategory(categoryId);
               }}
             />
           </div>
@@ -442,7 +482,7 @@ export default function CustomerMain() {
           {/* 메뉴 그리드 */}
           <div className="lg:col-span-3">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {menus.map((menu) => (
+              {filteredMenus.map((menu) => (
                 <MenuCard
                   key={menu.id}
                   menu={menu}

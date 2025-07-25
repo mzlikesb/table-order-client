@@ -5,6 +5,7 @@ export interface MenuItem {
   image?: string;
   description?: string;
   category: string;
+  categoryId?: string;
   isAvailable?: boolean; // 품절 여부
   createdAt?: string;
   updatedAt?: string;

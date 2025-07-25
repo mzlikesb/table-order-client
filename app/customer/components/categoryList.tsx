@@ -9,8 +9,20 @@ export default function CategoryList({
   return (
     <aside className="w-64 table-sidebar shadow-sm border-r">
       <div className="p-4">
-        <h2 className="text-lg font-semibold table-text-primary mb-4">{i18n.t('all')}</h2>
+        <h2 className="text-lg font-semibold table-text-primary mb-4">카테고리</h2>
         <nav className="space-y-2">
+          {/* 전체 카테고리 옵션 */}
+          <button
+            onClick={() => onCategorySelect('all')}
+            className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+              selectedCategory === 'all'
+                ? 'table-accent table-accent-hover'
+                : 'table-text-primary table-hover'
+            }`}
+          >
+            {i18n.t('all')}
+          </button>
+          
           {categories.map((category) => (
             <button
               key={category.id}

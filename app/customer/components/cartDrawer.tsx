@@ -83,7 +83,7 @@ export default function CartDrawer({
                       {item.menuName}
                     </h3>
                     <p className="text-sm table-text-secondary">
-                      ₩{item.price.toLocaleString()}
+                      ₩{Math.round(item.price).toLocaleString()}
                     </p>
                   </div>
 
@@ -109,7 +109,7 @@ export default function CartDrawer({
                   {/* 개별 가격 */}
                   <div className="text-right min-w-[80px]">
                     <p className="font-semibold table-text-primary">
-                      ₩{item.totalPrice.toLocaleString()}
+                      ₩{Math.round(item.totalPrice).toLocaleString()}
                     </p>
                   </div>
 
@@ -135,7 +135,7 @@ export default function CartDrawer({
                   {i18n.t('totalAmount')}
                 </span>
                 <span className="text-xl font-bold text-gray-700 dark:text-gray-300">
-                  ₩{totalAmount.toLocaleString()}
+                  ₩{Math.round(totalAmount).toLocaleString()}
                 </span>
               </div>
 

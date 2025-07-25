@@ -87,7 +87,7 @@ export default function MenuCard({ menu, onAddToCart }: MenuCardProps) {
 
         <div className="flex items-center justify-between mb-4">
           <span className="text-xl font-bold text-gray-700 dark:text-gray-300">
-            ₩{menu.price.toLocaleString()}
+            ₩{Math.round(menu.price).toLocaleString()}
           </span>
         </div>
 

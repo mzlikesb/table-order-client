@@ -36,31 +36,119 @@ export const menuApi = {
     return result;
   },
 
+  // 키오스크용 메뉴 API (고객용)
+  getKioskMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
+    if (!storeId) return { success: true, data: [] };
+    
+    try {
+      console.log('getKioskMenus 호출 - storeId:', storeId);
+      
+      // URL에서 테이블 번호 가져오기
+      const urlParams = new URLSearchParams(window.location.search);
+      const tableNumber = urlParams.get('table') || '1';
+      
+      // 키오스크용 엔드포인트 사용
+      const url = `${API_BASE_URL}/menus/kiosk`;
+      console.log('키오스크 메뉴 API 요청 URL:', url);
+      
+      // 키오스크 인증 헤더 (테이블 정보 포함)
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'X-Store-ID': storeId,
+        'X-Table-Number': tableNumber,
+      };
+      
+      console.log('키오스크 메뉴 API 요청 헤더:', headers);
+      
+      const response = await fetch(url, { headers });
+      
+      console.log('키오스크 메뉴 API 응답 상태:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '응답 텍스트를 읽을 수 없습니다.');
+        console.error('키오스크 메뉴 API 오류 응답:', errorText);
+        
+        if (response.status === 400) {
+          return { success: false, error: `잘못된 요청입니다. storeId: ${storeId}, 응답: ${errorText}` };
+        }
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다.' };
+        }
+        if (response.status === 404) {
+          return { success: false, error: `스토어 ID ${storeId}를 찾을 수 없습니다.` };
+        }
+        
+        return { success: false, error: `메뉴 목록을 불러오는데 실패했습니다. (${response.status}: ${errorText})` };
+      }
+      
+      const data = await response.json();
+      console.log('키오스크 메뉴 API 성공 응답:', data);
+      return { success: true, data: data.map(transformServerMenuItem) };
+    } catch (error) {
+      console.error('키오스크 메뉴 API 네트워크 오류:', error);
+      return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
+    }
+  },
+
   // 고객용 메뉴 API (임시로 인증 토큰 사용)
   getCustomerMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
     if (!storeId) return { success: true, data: [] };
     
     try {
+      console.log('getCustomerMenus 호출 - storeId:', storeId);
       const token = localStorage.getItem('authToken');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
       
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      // 여러 엔드포인트 시도
+      const endpoints = [
+        `${API_BASE_URL}/menus/store?store_id=${storeId}`,
+        `${API_BASE_URL}/menus?store_id=${storeId}`,
+        `${API_BASE_URL}/menus/store/${storeId}`,
+        `${API_BASE_URL}/menus/customer/store/${storeId}`,
+      ];
+      
+      let response: Response | null = null;
+      let lastError = '';
+      
+      for (const url of endpoints) {
+        try {
+          console.log('메뉴 API 요청 URL 시도:', url);
+          
+          // 먼저 인증 없이 시도
+          let headers: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          
+          response = await fetch(url, { headers });
+          
+          // 401 에러가 나면 인증 토큰과 함께 다시 시도
+          if (response.status === 401 && token) {
+            console.log('인증 토큰으로 재시도:', url);
+            headers['Authorization'] = `Bearer ${token}`;
+            response = await fetch(url, { headers });
+          }
+          
+          console.log('메뉴 API 응답 상태:', response.status, response.statusText);
+          console.log('메뉴 API 요청 헤더:', headers);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('메뉴 API 성공 응답:', data);
+            return { success: true, data: data.map(transformServerMenuItem) };
+          } else {
+            const errorText = await response.text().catch(() => '응답 텍스트를 읽을 수 없습니다.');
+            console.error('메뉴 API 오류 응답:', errorText);
+            lastError = `(${response.status}: ${errorText})`;
+          }
+        } catch (error) {
+          console.error('엔드포인트 시도 실패:', url, error);
+          lastError = `네트워크 오류: ${error}`;
+        }
       }
       
-      const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`, {
-        headers,
-      });
-      
-      if (!response.ok) {
-        return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
-      }
-      
-      const data = await response.json();
-      return { success: true, data: data.map(transformServerMenuItem) };
+      // 모든 엔드포인트 실패
+      return { success: false, error: `메뉴 목록을 불러오는데 실패했습니다. ${lastError}` };
     } catch (error) {
+      console.error('메뉴 API 네트워크 오류:', error);
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
   },

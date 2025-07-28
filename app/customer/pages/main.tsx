@@ -28,6 +28,7 @@ export default function CustomerMain() {
   const [store, setStore] = useState<StoreType | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [actualTableId, setActualTableId] = useState<string>(''); // 실제 테이블 ID
+  const [error, setError] = useState<string | null>(null);
   
   // 타이머 관련 상태
   const [timeLeft, setTimeLeft] = useState(300); // 300초 (5분)
@@ -57,6 +58,61 @@ export default function CustomerMain() {
 
   // storeId 추출
   const storeId = store?.id;
+
+  // 스토어 존재 여부 확인
+  const checkStoreExists = async (storeId: string) => {
+    try {
+      // 먼저 인증 없이 시도
+      let response = await fetch(`${API_BASE_URL}/stores/${storeId}`);
+      
+      // 401 에러가 나면 인증 토큰과 함께 다시 시도
+      if (response.status === 401) {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
+        }
+      }
+      
+      return response.ok;
+    } catch (error) {
+      console.error('스토어 존재 확인 실패:', error);
+      return false;
+    }
+  };
+
+  // 사용 가능한 스토어 목록 가져오기
+  const loadAvailableStores = async () => {
+    try {
+      // 먼저 인증 없이 시도
+      let response = await fetch(`${API_BASE_URL}/stores`);
+      
+      // 401 에러가 나면 인증 토큰과 함께 다시 시도
+      if (response.status === 401) {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          response = await fetch(`${API_BASE_URL}/stores`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
+        }
+      }
+      
+      if (response.ok) {
+        const stores = await response.json();
+        return stores;
+      }
+    } catch (error) {
+      console.error('스토어 목록 로드 실패:', error);
+    }
+    return [];
+  };
 
   // 테이블 번호로 테이블 ID 찾기
   const findTableIdByNumber = async (tableNumber: string, storeId: string) => {
@@ -178,19 +234,50 @@ export default function CustomerMain() {
   useEffect(() => {
     if (storeId) {
       console.log('스토어 ID 설정됨:', storeId);
-      loadMenus();
-      loadCategories();
       
-      // 테이블 번호로 실제 테이블 ID 찾기
-      const findTableId = async () => {
-        const actualId = await findTableIdByNumber(tableId, storeId);
-        if (actualId) {
-          setActualTableId(actualId);
-        } else {
-          console.error('테이블 ID를 찾을 수 없음:', tableId);
+      // 스토어 존재 여부 확인 후 메뉴 로드
+      const validateAndLoadData = async () => {
+        try {
+          const storeExists = await checkStoreExists(storeId);
+          if (!storeExists) {
+            console.error(`스토어 ID ${storeId}가 존재하지 않습니다.`);
+            
+            // 사용 가능한 스토어 목록 가져오기
+            const availableStores = await loadAvailableStores();
+            if (availableStores.length > 0) {
+              const firstStore = availableStores[0];
+              console.log('첫 번째 사용 가능한 스토어로 변경:', firstStore);
+              setStore(firstStore);
+              setError(`스토어 ID ${storeId}를 찾을 수 없어서 첫 번째 사용 가능한 스토어(${firstStore.name})로 변경했습니다.`);
+            } else {
+              console.log('스토어 API 실패로 인해 기본 스토어 정보를 사용합니다.');
+              // 스토어 API 실패 시에도 메뉴 로드 계속 진행
+              setError(`스토어 정보를 불러올 수 없어 기본 메뉴를 표시합니다.`);
+            }
+          }
+        } catch (error) {
+          console.error('스토어 검증 실패:', error);
+          console.log('스토어 검증 실패로 인해 기본 메뉴를 로드합니다.');
+          setError('스토어 정보를 확인할 수 없어 기본 메뉴를 표시합니다.');
         }
+        
+        // 스토어 검증 결과와 관계없이 메뉴 로드 진행
+        loadMenus();
+        loadCategories();
+        
+        // 테이블 번호로 실제 테이블 ID 찾기
+        const findTableId = async () => {
+          const actualId = await findTableIdByNumber(tableId, storeId);
+          if (actualId) {
+            setActualTableId(actualId);
+          } else {
+            console.error('테이블 ID를 찾을 수 없음:', tableId);
+          }
+        };
+        findTableId();
       };
-      findTableId();
+      
+      validateAndLoadData();
     }
   }, [storeId]);
 
@@ -240,10 +327,100 @@ export default function CustomerMain() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // 하드코딩된 메뉴 데이터 (API 실패 시 사용)
+  const getFallbackMenus = (): MenuItem[] => {
+    return [
+      {
+        id: '1',
+        name: '아메리카노',
+        price: 4500,
+        image: '',
+        description: '깔끔한 아메리카노',
+        category: '커피',
+        categoryId: '1',
+        isAvailable: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: '2',
+        name: '카페라떼',
+        price: 5000,
+        image: '',
+        description: '부드러운 카페라떼',
+        category: '커피',
+        categoryId: '1',
+        isAvailable: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: '3',
+        name: '치즈케이크',
+        price: 6500,
+        image: '',
+        description: '진한 치즈케이크',
+        category: '디저트',
+        categoryId: '2',
+        isAvailable: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+  };
+
+  // 하드코딩된 카테고리 데이터 (API 실패 시 사용)
+  const getFallbackCategories = (): Category[] => {
+    return [
+      { id: '1', name: '커피' },
+      { id: '2', name: '디저트' },
+    ];
+  };
+
   const loadMenus = async () => {
     try {
-      // 고객용 API 사용 (인증 없이 호출)
+      console.log('메뉴 로드 시작 - storeId:', storeId);
+      setError(null); // 에러 상태 초기화
+      
+      // storeId가 없으면 조기 반환
+      if (!storeId) {
+        console.log('storeId가 없어서 메뉴 로드를 건너뜁니다.');
+        setLoading(false);
+        return;
+      }
+      
+      // 1. 먼저 키오스크 API 시도
+      console.log('키오스크 API 시도 중...');
+      const kioskResponse = await menuApi.getKioskMenus(storeId);
+      console.log('키오스크 API 응답:', kioskResponse);
+      
+      if (kioskResponse.success) {
+        // 키오스크 API 성공
+        const menusForFrontend = (kioskResponse.data || []).map((item: any) => {
+          return {
+            id: item.id,
+            name: item.name,
+            price: Math.round(Number(item.price)),
+            image: item.image,
+            description: item.description,
+            category: item.categoryName || item.category || '',
+            categoryId: item.categoryId || item.category_id,
+            isAvailable: item.isAvailable,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          };
+        });
+        console.log('키오스크 API 성공 - 변환된 메뉴:', menusForFrontend);
+        setMenus(menusForFrontend);
+        setLoading(false);
+        return;
+      }
+      
+      // 2. 키오스크 API 실패 시 기존 고객용 API 시도
+      console.log('키오스크 API 실패, 고객용 API 시도 중...');
       const response = await menuApi.getCustomerMenus(storeId);
+      console.log('고객용 메뉴 API 응답:', response);
+      
       if (response.success) {
         // API 타입을 프론트 MenuItem 타입으로 변환
         const menusForFrontend = (response.data || []).map((item: any) => {
@@ -260,12 +437,25 @@ export default function CustomerMain() {
             updatedAt: item.updatedAt,
           };
         });
+        console.log('고객용 API 성공 - 변환된 메뉴:', menusForFrontend);
         setMenus(menusForFrontend);
       } else {
         console.error('메뉴 로드 실패:', response.error);
+        
+        // API 실패 시 하드코딩된 메뉴 사용
+        console.log('API 실패로 인해 하드코딩된 메뉴를 사용합니다.');
+        const fallbackMenus = getFallbackMenus();
+        setMenus(fallbackMenus);
+        setError('서버 연결에 실패하여 기본 메뉴를 표시합니다. 잠시 후 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('메뉴 로드 에러:', error);
+      
+      // 에러 시 하드코딩된 메뉴 사용
+      console.log('네트워크 오류로 인해 하드코딩된 메뉴를 사용합니다.');
+      const fallbackMenus = getFallbackMenus();
+      setMenus(fallbackMenus);
+      setError('네트워크 오류로 인해 기본 메뉴를 표시합니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -278,25 +468,17 @@ export default function CustomerMain() {
         setCategories(response.data || []);
       } else {
         console.error('카테고리 로드 실패:', response.error);
-        // API 실패 시 메뉴에서 카테고리 추출하는 fallback
-        const uniqueCategories = Array.from(new Set(menus.map(menu => menu.category)))
-          .filter(category => category)
-          .map(category => ({
-            id: category,
-            name: category
-          }));
-        setCategories(uniqueCategories);
+        // API 실패 시 하드코딩된 카테고리 사용
+        console.log('API 실패로 인해 하드코딩된 카테고리를 사용합니다.');
+        const fallbackCategories = getFallbackCategories();
+        setCategories(fallbackCategories);
       }
     } catch (error) {
       console.error('카테고리 로드 에러:', error);
-      // 에러 시 메뉴에서 카테고리 추출하는 fallback
-      const uniqueCategories = Array.from(new Set(menus.map(menu => menu.category)))
-        .filter(category => category)
-        .map(category => ({
-          id: category,
-          name: category
-        }));
-      setCategories(uniqueCategories);
+      // 에러 시 하드코딩된 카테고리 사용
+      console.log('네트워크 오류로 인해 하드코딩된 카테고리를 사용합니다.');
+      const fallbackCategories = getFallbackCategories();
+      setCategories(fallbackCategories);
     }
   };
 
@@ -481,6 +663,45 @@ export default function CustomerMain() {
           </div>
         </div>
       </header>
+
+      {/* 에러 메시지 표시 */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <p className="text-sm text-red-700 dark:text-red-300">
+                {error}
+              </p>
+            </div>
+            <div className="ml-3 flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  loadMenus();
+                }}
+                className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 border border-red-300 rounded hover:bg-red-200 dark:text-red-300 dark:bg-red-800 dark:border-red-600 dark:hover:bg-red-700"
+              >
+                다시 시도
+              </button>
+              <button
+                onClick={() => setError(null)}
+                className="inline-flex text-red-500 hover:text-red-700 dark:hover:text-red-300"
+              >
+                <span className="sr-only">닫기</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 메뉴 상태 변경 알림 */}
       {menuStatusNotification && (

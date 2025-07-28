@@ -6,10 +6,14 @@ export { callApi, transformServerCall } from './calls';
 export { storeApi, transformServerStore } from './stores';
 export { menuCategoryApi, transformServerMenuCategory } from './menuCategories';
 
+// 공통 유틸리티 export
+export { getHeaders, apiRequest, handleApiResponse } from './common';
+
 // 기존 import 방식과 호환성을 위해 개별 export도 제공
 export * from './menus';
 export * from './tables';
 export * from './orders';
 export * from './calls';
 export * from './stores';
-export * from './menuCategories'; 
+export * from './menuCategories';
+export * from './common'; 

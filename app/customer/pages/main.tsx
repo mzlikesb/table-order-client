@@ -61,7 +61,19 @@ export default function CustomerMain() {
   // 테이블 번호로 테이블 ID 찾기
   const findTableIdByNumber = async (tableNumber: string, storeId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`);
+      // 고객용 테이블 API 호출 (임시로 인증 토큰 사용)
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`, {
+        headers,
+      });
       
       if (response.ok) {
         const tables = await response.json();
@@ -230,7 +242,8 @@ export default function CustomerMain() {
 
   const loadMenus = async () => {
     try {
-      const response = await menuApi.getMenus(storeId);
+      // 고객용 API 사용 (인증 없이 호출)
+      const response = await menuApi.getCustomerMenus(storeId);
       if (response.success) {
         // API 타입을 프론트 MenuItem 타입으로 변환
         const menusForFrontend = (response.data || []).map((item: any) => {

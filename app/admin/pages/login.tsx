@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { authApi } from '../../lib/api/auth';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -7,6 +8,7 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [lastLoginAttempt, setLastLoginAttempt] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,20 +18,32 @@ export default function AdminLogin() {
       return;
     }
 
+    // Rate limiting 방지: 최소 3초 간격으로 로그인 시도
+    const now = Date.now();
+    if (now - lastLoginAttempt < 3000) {
+      setError('잠시 후 다시 시도해주세요. (3초 대기)');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
+    setLastLoginAttempt(now);
 
     try {
-      // 간단한 로그인 검증 (실제로는 서버 API 호출)
-      if (username === 'admin' && password === 'admin123') {
+      // 실제 API 로그인 시도
+      const response = await authApi.login({ username, password });
+      
+      if (response.success) {
         // 로그인 성공
         localStorage.setItem('admin_logged_in', 'true');
         localStorage.setItem('admin_username', username);
+        // authToken으로 통일 (adminToken 제거)
         window.location.href = '/admin/select-mode';
       } else {
-        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+        setError(response.error || '아이디 또는 비밀번호가 올바르지 않습니다.');
       }
     } catch (error) {
+      console.error('로그인 오류:', error);
       setError('로그인 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);

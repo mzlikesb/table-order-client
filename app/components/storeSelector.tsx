@@ -36,6 +36,7 @@ export default function StoreSelector({ selectedStoreId, onStoreSelect, classNam
       if (response.success) {
         setStores(response.data || []);
       } else {
+        console.error('스토어 목록 로드 실패:', response.error);
         setError(response.error || '스토어 목록을 불러오는데 실패했습니다.');
       }
     } catch (error) {

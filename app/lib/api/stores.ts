@@ -19,10 +19,50 @@ export const transformServerStore = (serverData: any): Store => {
 export const storeApi = {
   getStores: async (): Promise<ApiResponse<Store[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/stores`);
+      // 인증 토큰 가져오기 (localStorage에서)
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      console.log('Stores API 호출 헤더:', headers);
+      console.log('현재 토큰:', token ? '있음' : '없음');
+      
+      const response = await fetch(`${API_BASE_URL}/stores`, {
+        headers,
+      });
+      
+      console.log('Stores API 응답 상태:', response.status);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error('인증 실패 - 토큰:', token);
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        if (response.status === 403) {
+          console.error('권한 없음 - 토큰:', token);
+          return { success: false, error: '스토어 권한이 없습니다. 관리자에게 문의하세요.' };
+        }
+        if (response.status === 500) {
+          console.error('서버 내부 오류 - 토큰:', token);
+          const errorText = await response.text().catch(() => '서버 오류');
+          console.error('서버 오류 상세:', errorText);
+          return { success: false, error: '서버 내부 오류가 발생했습니다. 관리자에게 문의하세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Stores API 오류:', errorData);
+        return { success: false, error: errorData.error || '스토어 목록을 불러오는데 실패했습니다.' };
+      }
+      
       const data = await response.json();
       return { success: true, data: data.map(transformServerStore) };
     } catch (error) {
+      console.error('Stores API 호출 오류:', error);
       return { success: false, error: '스토어 목록을 불러오는데 실패했습니다.' };
     }
   },

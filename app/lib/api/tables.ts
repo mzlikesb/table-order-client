@@ -31,22 +31,63 @@ export const tableApi = {
   getTables: async (storeId?: string): Promise<ApiResponse<Table[]>> => {
     if (!storeId) return { success: true, data: [] };
     try {
-      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`);
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      console.log('Tables API 호출 - storeId:', storeId, '토큰:', token ? '있음' : '없음');
+      
+      // 올바른 엔드포인트 사용: /stores/:storeId/tables
+      const response = await fetch(`${API_BASE_URL}/stores/${storeId}/tables`, {
+        headers,
+      });
+      
+      console.log('Tables API 응답 상태:', response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          console.error('Tables API 인증 실패');
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Tables API 오류:', errorData);
         return { success: false, error: errorData.error || '테이블 목록을 불러오는데 실패했습니다.' };
       }
       const data = await response.json();
       return { success: true, data: data.map(transformServerTable) };
     } catch (error) {
+      console.error('Tables API 호출 오류:', error);
       return { success: false, error: '테이블 목록을 불러오는데 실패했습니다.' };
     }
   },
   getTablesByStore: async (storeId: string): Promise<ApiResponse<Table[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`);
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      // 올바른 엔드포인트 사용: /stores/:storeId/tables
+      const response = await fetch(`${API_BASE_URL}/stores/${storeId}/tables`, {
+        headers,
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '스토어별 테이블 목록을 불러오는데 실패했습니다.' };
       }
       const data = await response.json();
@@ -57,9 +98,25 @@ export const tableApi = {
   },
   getTable: async (tableId: string): Promise<ApiResponse<Table>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tables/${tableId}`);
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/tables/${tableId}`, {
+        headers,
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '테이블 정보를 불러오는데 실패했습니다.' };
       }
       const data = await response.json();
@@ -70,6 +127,16 @@ export const tableApi = {
   },
   createTable: async (tableData: Omit<Table, 'id'> & { id: string }): Promise<ApiResponse<Table>> => {
     try {
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const serverTableData = {
         store_id: tableData.storeId,
         table_number: tableData.number,
@@ -79,11 +146,14 @@ export const tableApi = {
       };
       const response = await fetch(`${API_BASE_URL}/tables`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(serverTableData),
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '테이블 생성에 실패했습니다.' };
       }
       const data = await response.json();
@@ -94,6 +164,16 @@ export const tableApi = {
   },
   updateTable: async (tableId: string, tableData: Partial<Table>): Promise<ApiResponse<Table>> => {
     try {
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const serverTableData: any = {};
       if (tableData.storeId !== undefined) {
         serverTableData.store_id = tableData.storeId;
@@ -115,11 +195,14 @@ export const tableApi = {
       }
       const response = await fetch(`${API_BASE_URL}/tables/${tableId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(serverTableData),
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '테이블 수정에 실패했습니다.' };
       }
       const data = await response.json();
@@ -130,13 +213,26 @@ export const tableApi = {
   },
   updateTableStatus: async (tableId: string, status: TableStatus): Promise<ApiResponse<Table>> => {
     try {
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/tables/${tableId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ status }),
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '테이블 상태 변경에 실패했습니다.' };
       }
       const data = await response.json();
@@ -147,11 +243,25 @@ export const tableApi = {
   },
   deleteTable: async (tableId: string): Promise<ApiResponse<Table>> => {
     try {
+      const token = localStorage.getItem('authToken');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/tables/${tableId}`, {
         method: 'DELETE',
+        headers,
       });
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 401) {
+          return { success: false, error: '인증이 필요합니다. 다시 로그인해주세요.' };
+        }
+        const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || '테이블 삭제에 실패했습니다.' };
       }
       const data = await response.json();

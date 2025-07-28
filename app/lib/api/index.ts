@@ -5,6 +5,7 @@ export { orderApi } from './orders';
 export { callApi, transformServerCall } from './calls';
 export { storeApi, transformServerStore } from './stores';
 export { menuCategoryApi, transformServerMenuCategory } from './menuCategories';
+export { authApi } from './auth';
 
 // 공통 유틸리티 export
 export { getHeaders, apiRequest, handleApiResponse } from './common';
@@ -16,4 +17,5 @@ export * from './orders';
 export * from './calls';
 export * from './stores';
 export * from './menuCategories';
+export * from './auth';
 export * from './common'; 

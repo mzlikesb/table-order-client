@@ -35,6 +35,35 @@ export const menuApi = {
     
     return result;
   },
+
+  // 고객용 메뉴 API (임시로 인증 토큰 사용)
+  getCustomerMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
+    if (!storeId) return { success: true, data: [] };
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/menus/store/${storeId}`, {
+        headers,
+      });
+      
+      if (!response.ok) {
+        return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
+      }
+      
+      const data = await response.json();
+      return { success: true, data: data.map(transformServerMenuItem) };
+    } catch (error) {
+      return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
+    }
+  },
   
   getMenusByStore: async (storeId: string): Promise<ApiResponse<MenuItem[]>> => {
     const result = await apiRequest(

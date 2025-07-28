@@ -18,7 +18,18 @@ export const menuCategoryApi = {
       const url = storeId
         ? `${API_BASE_URL}/menu-categories?store_id=${storeId}`
         : `${API_BASE_URL}/menu-categories`;
-      const response = await fetch(url);
+      
+      // 임시로 인증 토큰 사용
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
       
       if (!response.ok) {
         return { success: false, error: '카테고리 목록을 불러오는데 실패했습니다.' };

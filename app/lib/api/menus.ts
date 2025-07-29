@@ -85,15 +85,22 @@ export const menuApi = {
   },
 
   // 고객용 메뉴 API (인증 없이)
-  getCustomerMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
+  getCustomerMenus: async (storeId: string): Promise<ApiResponse<MenuItem[]>> => {
     if (!storeId) return { success: true, data: [] };
     
     try {
       console.log('getCustomerMenus 호출 - storeId:', storeId);
+      console.log('API_BASE_URL:', API_BASE_URL);
       
       // 새로운 공개 메뉴 API 엔드포인트 사용
       const url = `${API_BASE_URL}/menus/customer?store_id=${storeId}`;
       console.log('공개 메뉴 API 요청 URL:', url);
+      console.log('전체 URL 구성:', {
+        base: API_BASE_URL,
+        path: '/menus/customer',
+        query: `store_id=${storeId}`,
+        full: url
+      });
       
       const result = await publicApiRequest(
         url,

@@ -32,19 +32,8 @@ export const getPublicHeaders = () => {
     'Content-Type': 'application/json',
   };
   
-  // 멀티테넌트 지원을 위한 헤더 (스토어 정보만)
-  const store = localStorage.getItem('admin_store');
-  if (store) {
-    try {
-      const storeData = JSON.parse(store);
-      if (storeData.id) {
-        headers['X-Store-ID'] = storeData.id;
-      }
-    } catch (error) {
-      console.error('스토어 정보 파싱 오류:', error);
-    }
-  }
-  
+  // 공개 API는 인증이나 스토어 헤더 없이 기본 헤더만 사용
+  // store_id는 URL 쿼리 파라미터로 전달됨
   return headers;
 };
 

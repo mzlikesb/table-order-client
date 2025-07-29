@@ -1,5 +1,5 @@
 import type { MenuCategory, ApiResponse } from '../../types/api';
-import { apiRequest } from './common';
+import { apiRequest, publicApiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -15,12 +15,10 @@ export const transformServerMenuCategory = (data: any): MenuCategory => ({
 
 export const menuCategoryApi = {
   getCategories: async (storeId?: string): Promise<ApiResponse<MenuCategory[]>> => {
-    const url = storeId
-      ? `${API_BASE_URL}/menu-categories?store_id=${storeId}`
-      : `${API_BASE_URL}/menu-categories`;
+    if (!storeId) return { success: true, data: [] };
     
     const result = await apiRequest(
-      url,
+      `${API_BASE_URL}/menu-categories/store/${storeId}`,
       {},
       '카테고리 목록을 불러오는데 실패했습니다.'
     );
@@ -31,55 +29,71 @@ export const menuCategoryApi = {
     
     return result;
   },
-  getCategory: async (id: string): Promise<ApiResponse<MenuCategory>> => {
-    const result = await apiRequest(
-      `${API_BASE_URL}/menu-categories/${id}`,
-      {},
-      '카테고리 정보를 불러오는데 실패했습니다.'
-    );
+
+  // 고객용 공개 카테고리 API (인증 없이)
+  getPublicCategories: async (storeId?: string): Promise<ApiResponse<MenuCategory[]>> => {
+    if (!storeId) return { success: true, data: [] };
     
-    if (result.success) {
-      return { success: true, data: transformServerMenuCategory(result.data) };
-    }
-    
-    return result;
-  },
-  createCategory: async (category: { storeId: string; name: string; sortOrder?: number }): Promise<ApiResponse<MenuCategory>> => {
     try {
-      // Log current user info
-      const userInfo = localStorage.getItem('userInfo');
-      const userStores = localStorage.getItem('userStores');
+      console.log('getPublicCategories 호출 - storeId:', storeId);
+      
+      const url = `${API_BASE_URL}/menu-categories/customer?store_id=${storeId}`;
+      console.log('공개 카테고리 API 요청 URL:', url);
+      
+      const result = await publicApiRequest(
+        url,
+        {},
+        '카테고리 목록을 불러오는데 실패했습니다.'
+      );
+      
+      if (result.success) {
+        console.log('공개 카테고리 API 성공 응답:', result.data);
+        return { success: true, data: (result.data || []).map(transformServerMenuCategory) };
+      } else {
+        console.error('공개 카테고리 API 오류 응답:', result.error);
+        return result;
+      }
+    } catch (error) {
+      console.error('카테고리 API 네트워크 오류:', error);
+      return { success: false, error: '카테고리 목록을 불러오는데 실패했습니다.' };
+    }
+  },
+
+  createCategory: async (category: Omit<MenuCategory, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<MenuCategory>> => {
+    try {
+      console.log('카테고리 생성 시도:', category);
+      
+      // 사용자 스토어 정보 확인
       const authToken = localStorage.getItem('authToken');
-      
-      console.log('Current user info:', userInfo ? JSON.parse(userInfo) : 'No user info');
-      console.log('User stores:', userStores ? JSON.parse(userStores) : 'No user stores');
-      console.log('Auth token exists:', !!authToken);
-      
-      // Check user roles and permissions
-      const userData = userInfo ? JSON.parse(userInfo) : null;
-      if (userData) {
-        console.log('User roles:', userData.roles || 'No roles');
-        console.log('User permissions:', userData.permissions || 'No permissions');
-        console.log('Is super admin:', userData.isSuperAdmin);
+      if (!authToken) {
+        return { success: false, error: '인증이 필요합니다.' };
       }
       
-      // Check if user is connected to any store
-      const userStoresData = userStores ? JSON.parse(userStores) : [];
-      console.log('User stores data:', userStoresData);
+      // 사용자 스토어 목록 확인
+      const userStores = localStorage.getItem('userStores');
+      let userStoresData: any[] = [];
+      
+      if (userStores) {
+        try {
+          userStoresData = JSON.parse(userStores);
+          console.log('사용자 스토어 목록:', userStoresData);
+        } catch (error) {
+          console.error('사용자 스토어 정보 파싱 오류:', error);
+        }
+      }
       
       // If user has no stores, try to get stores from server
       if (userStoresData.length === 0) {
         console.log('User has no stores, attempting to fetch stores...');
         try {
-          const storesResponse = await fetch(`${API_BASE_URL}/stores`, {
-            headers: {
-              'Authorization': `Bearer ${authToken}`,
-              'Content-Type': 'application/json',
-            }
-          });
+          const storesResult = await apiRequest(
+            `${API_BASE_URL}/stores`,
+            {},
+            '스토어 목록을 불러오는데 실패했습니다.'
+          );
           
-          if (storesResponse.ok) {
-            const storesData = await storesResponse.json();
+          if (storesResult.success) {
+            const storesData = storesResult.data;
             console.log('Available stores:', storesData);
             
             // Update userStores in localStorage

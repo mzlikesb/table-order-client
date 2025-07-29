@@ -1,5 +1,5 @@
 import type { Call, CreateCallRequest, CallStatus, CallType, ApiResponse } from '../../types/api';
-import { apiRequest } from './common';
+import { apiRequest, publicApiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -26,6 +26,7 @@ export const transformServerCall = (serverData: any): Call => {
 };
 
 export const callApi = {
+  // 관리자용 호출 생성 (인증 필요)
   createCall: async (callData: CreateCallRequest): Promise<ApiResponse<Call>> => {
     try {
       const serverCallData = {
@@ -35,23 +36,54 @@ export const callApi = {
         message: null // 백엔드에서 message는 선택사항
       };
       
-      const response = await fetch(`${API_BASE_URL}/calls`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(serverCallData),
-      });
+      const result = await apiRequest(
+        `${API_BASE_URL}/calls`,
+        {
+          method: 'POST',
+          body: JSON.stringify(serverCallData),
+        },
+        '호출 생성에 실패했습니다.'
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '호출 생성에 실패했습니다.' };
+      if (result.success) {
+        return { success: true, data: result.data };
       }
       
-      const data = await response.json();
-      return { success: true, data };
+      return result;
     } catch (error) {
       return { success: false, error: '호출 생성에 실패했습니다.' };
     }
   },
+
+  // 고객용 호출 생성 (인증 없이)
+  createPublicCall: async (callData: CreateCallRequest): Promise<ApiResponse<Call>> => {
+    try {
+      const serverCallData = {
+        store_id: callData.storeId,
+        table_id: callData.tableId,
+        call_type: callData.type,
+        message: null // 백엔드에서 message는 선택사항
+      };
+      
+      const result = await publicApiRequest(
+        `${API_BASE_URL}/calls/public`,
+        {
+          method: 'POST',
+          body: JSON.stringify(serverCallData),
+        },
+        '호출 생성에 실패했습니다.'
+      );
+      
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      
+      return result;
+    } catch (error) {
+      return { success: false, error: '호출 생성에 실패했습니다.' };
+    }
+  },
+
   getAdminCalls: async (storeId?: string): Promise<ApiResponse<Call[]>> => {
     try {
       const url = storeId ? `${API_BASE_URL}/calls/store/${storeId}` : `${API_BASE_URL}/calls`;
@@ -91,49 +123,57 @@ export const callApi = {
         body.responded_by = respondedBy;
       }
       
-      const response = await fetch(`${API_BASE_URL}/calls/${callId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const result = await apiRequest(
+        `${API_BASE_URL}/calls/${callId}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        },
+        '호출 상태 변경에 실패했습니다.'
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '호출 상태 변경에 실패했습니다.' };
+      if (result.success) {
+        return { success: true, data: result.data };
       }
       
-      const data = await response.json();
-      return { success: true, data };
+      return result;
     } catch (error) {
       return { success: false, error: '호출 상태 변경에 실패했습니다.' };
     }
   },
   getTableCalls: async (tableId: string): Promise<ApiResponse<Call[]>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/calls/table/${tableId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '테이블별 호출을 불러오는데 실패했습니다.' };
+      const result = await apiRequest(
+        `${API_BASE_URL}/calls/table/${tableId}`,
+        {},
+        '테이블별 호출을 불러오는데 실패했습니다.'
+      );
+      
+      if (result.success) {
+        return { success: true, data: result.data.map(transformServerCall) };
       }
-      const data = await response.json();
-      return { success: true, data: data.map(transformServerCall) };
+      
+      return result;
     } catch (error) {
       return { success: false, error: '테이블별 호출을 불러오는데 실패했습니다.' };
     }
   },
   completeCall: async (callId: string): Promise<ApiResponse<Call>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/calls/${callId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '호출 완료 처리에 실패했습니다.' };
+      const result = await apiRequest(
+        `${API_BASE_URL}/calls/${callId}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'completed' }),
+        },
+        '호출 완료 처리에 실패했습니다.'
+      );
+      
+      if (result.success) {
+        return { success: true, data: transformServerCall(result.data) };
       }
-      const data = await response.json();
-      return { success: true, data: transformServerCall(data) };
+      
+      return result;
     } catch (error) {
       return { success: false, error: '호출 완료 처리에 실패했습니다.' };
     }

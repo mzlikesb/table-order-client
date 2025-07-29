@@ -26,6 +26,28 @@ export const getHeaders = () => {
   return headers;
 };
 
+// 고객 모드용 공개 헤더 (인증 없이)
+export const getPublicHeaders = () => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  // 멀티테넌트 지원을 위한 헤더 (스토어 정보만)
+  const store = localStorage.getItem('admin_store');
+  if (store) {
+    try {
+      const storeData = JSON.parse(store);
+      if (storeData.id) {
+        headers['X-Store-ID'] = storeData.id;
+      }
+    } catch (error) {
+      console.error('스토어 정보 파싱 오류:', error);
+    }
+  }
+  
+  return headers;
+};
+
 // API 응답 처리 유틸리티
 export const handleApiResponse = async (response: Response, errorMessage: string) => {
   if (!response.ok) {
@@ -64,7 +86,7 @@ export const handleApiResponse = async (response: Response, errorMessage: string
   }
 };
 
-// API 요청 유틸리티
+// API 요청 유틸리티 (인증 포함)
 export const apiRequest = async (
   url: string, 
   options: RequestInit = {}, 
@@ -82,6 +104,28 @@ export const apiRequest = async (
     return await handleApiResponse(response, errorMessage);
   } catch (error) {
     console.error('API 요청 오류:', error);
+    return { success: false, error: errorMessage };
+  }
+};
+
+// 고객 모드용 공개 API 요청 유틸리티 (인증 없이)
+export const publicApiRequest = async (
+  url: string, 
+  options: RequestInit = {}, 
+  errorMessage: string
+) => {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getPublicHeaders(),
+        ...options.headers,
+      },
+    });
+    
+    return await handleApiResponse(response, errorMessage);
+  } catch (error) {
+    console.error('공개 API 요청 오류:', error);
     return { success: false, error: errorMessage };
   }
 }; 

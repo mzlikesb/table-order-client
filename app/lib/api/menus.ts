@@ -1,5 +1,5 @@
 import type { MenuItem, ApiResponse } from '../../types/api';
-import { apiRequest } from './common';
+import { apiRequest, publicApiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -43,19 +43,13 @@ export const menuApi = {
     try {
       console.log('getKioskMenus 호출 - storeId:', storeId);
       
-      // URL에서 테이블 번호 가져오기
-      const urlParams = new URLSearchParams(window.location.search);
-      const tableNumber = urlParams.get('table') || '1';
-      
-      // 키오스크용 엔드포인트 사용
-      const url = `${API_BASE_URL}/menus/kiosk`;
+      // 키오스크용 엔드포인트 사용 (CORS 문제 해결을 위해 헤더 단순화)
+      const url = `${API_BASE_URL}/menus/kiosk?store_id=${storeId}`;
       console.log('키오스크 메뉴 API 요청 URL:', url);
       
-      // 키오스크 인증 헤더 (테이블 정보 포함)
+      // 간단한 헤더만 사용 (CORS 문제 방지)
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        'X-Store-ID': storeId,
-        'X-Table-Number': tableNumber,
       };
       
       console.log('키오스크 메뉴 API 요청 헤더:', headers);
@@ -90,63 +84,30 @@ export const menuApi = {
     }
   },
 
-  // 고객용 메뉴 API (임시로 인증 토큰 사용)
+  // 고객용 메뉴 API (인증 없이)
   getCustomerMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
     if (!storeId) return { success: true, data: [] };
     
     try {
       console.log('getCustomerMenus 호출 - storeId:', storeId);
-      const token = localStorage.getItem('authToken');
       
-      // 여러 엔드포인트 시도
-      const endpoints = [
-        `${API_BASE_URL}/menus/store?store_id=${storeId}`,
-        `${API_BASE_URL}/menus?store_id=${storeId}`,
-        `${API_BASE_URL}/menus/store/${storeId}`,
-        `${API_BASE_URL}/menus/customer/store/${storeId}`,
-      ];
+      // 새로운 공개 메뉴 API 엔드포인트 사용
+      const url = `${API_BASE_URL}/menus/customer?store_id=${storeId}`;
+      console.log('공개 메뉴 API 요청 URL:', url);
       
-      let response: Response | null = null;
-      let lastError = '';
+      const result = await publicApiRequest(
+        url,
+        {},
+        '메뉴 목록을 불러오는데 실패했습니다.'
+      );
       
-      for (const url of endpoints) {
-        try {
-          console.log('메뉴 API 요청 URL 시도:', url);
-          
-          // 먼저 인증 없이 시도
-          let headers: HeadersInit = {
-            'Content-Type': 'application/json',
-          };
-          
-          response = await fetch(url, { headers });
-          
-          // 401 에러가 나면 인증 토큰과 함께 다시 시도
-          if (response.status === 401 && token) {
-            console.log('인증 토큰으로 재시도:', url);
-            headers['Authorization'] = `Bearer ${token}`;
-            response = await fetch(url, { headers });
-          }
-          
-          console.log('메뉴 API 응답 상태:', response.status, response.statusText);
-          console.log('메뉴 API 요청 헤더:', headers);
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('메뉴 API 성공 응답:', data);
-            return { success: true, data: data.map(transformServerMenuItem) };
-          } else {
-            const errorText = await response.text().catch(() => '응답 텍스트를 읽을 수 없습니다.');
-            console.error('메뉴 API 오류 응답:', errorText);
-            lastError = `(${response.status}: ${errorText})`;
-          }
-        } catch (error) {
-          console.error('엔드포인트 시도 실패:', url, error);
-          lastError = `네트워크 오류: ${error}`;
-        }
+      if (result.success) {
+        console.log('공개 메뉴 API 성공 응답:', result.data);
+        return { success: true, data: result.data.map(transformServerMenuItem) };
+      } else {
+        console.error('공개 메뉴 API 오류 응답:', result.error);
+        return result;
       }
-      
-      // 모든 엔드포인트 실패
-      return { success: false, error: `메뉴 목록을 불러오는데 실패했습니다. ${lastError}` };
     } catch (error) {
       console.error('메뉴 API 네트워크 오류:', error);
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };

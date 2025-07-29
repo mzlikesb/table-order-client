@@ -62,86 +62,40 @@ export default function CustomerMain() {
   // 스토어 존재 여부 확인
   const checkStoreExists = async (storeId: string) => {
     try {
-      // 먼저 인증 없이 시도
-      let response = await fetch(`${API_BASE_URL}/stores/${storeId}`);
-      
-      // 401 에러가 나면 인증 토큰과 함께 다시 시도
-      if (response.status === 401) {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            }
-          });
-        }
-      }
-      
-      return response.ok;
+      // 현재 백엔드에 구현된 공개 API가 없으므로 항상 true 반환
+      // 향후 스토어 공개 API가 구현되면 여기서 확인 가능
+      console.log('스토어 존재 확인 - 공개 API 미구현으로 인해 기본값 사용');
+      return true;
     } catch (error) {
       console.error('스토어 존재 확인 실패:', error);
-      return false;
+      return true; // 에러 시에도 true 반환하여 fallback 메뉴 사용
     }
   };
 
   // 사용 가능한 스토어 목록 가져오기
   const loadAvailableStores = async () => {
     try {
-      // 먼저 인증 없이 시도
-      let response = await fetch(`${API_BASE_URL}/stores`);
-      
-      // 401 에러가 나면 인증 토큰과 함께 다시 시도
-      if (response.status === 401) {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          response = await fetch(`${API_BASE_URL}/stores`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            }
-          });
-        }
-      }
-      
-      if (response.ok) {
-        const stores = await response.json();
-        return stores;
-      }
+      // 현재 백엔드에 구현된 공개 API가 없으므로 빈 배열 반환
+      // 향후 스토어 공개 API가 구현되면 여기서 로드 가능
+      console.log('스토어 목록 로드 - 공개 API 미구현으로 인해 빈 배열 반환');
+      return [];
     } catch (error) {
       console.error('스토어 목록 로드 실패:', error);
+      return [];
     }
-    return [];
   };
 
   // 테이블 번호로 테이블 ID 찾기
   const findTableIdByNumber = async (tableNumber: string, storeId: string) => {
     try {
-      // 고객용 테이블 API 호출 (임시로 인증 토큰 사용)
-      const token = localStorage.getItem('authToken');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/tables/store/${storeId}`, {
-        headers,
-      });
-      
-      if (response.ok) {
-        const tables = await response.json();
-        const table = tables.find((t: any) => String(t.table_number) === tableNumber);
-        return table ? table.id : null;
-      } else {
-        console.error('테이블 API 에러:', response.status, response.statusText);
-      }
+      // 현재 백엔드에 구현된 공개 API가 없으므로 null 반환
+      // 향후 테이블 공개 API가 구현되면 여기서 찾기 가능
+      console.log('테이블 ID 찾기 - 공개 API 미구현으로 인해 null 반환');
+      return null;
     } catch (error) {
       console.error('테이블 ID 찾기 실패:', error);
+      return null;
     }
-    return null;
   };
 
   // 타이머 리셋 함수
@@ -248,7 +202,7 @@ export default function CustomerMain() {
               const firstStore = availableStores[0];
               console.log('첫 번째 사용 가능한 스토어로 변경:', firstStore);
               setStore(firstStore);
-              setError(`스토어 ID ${storeId}를 찾을 수 없어서 첫 번째 사용 가능한 스토어(${firstStore.name})로 변경했습니다.`);
+              setError(`스토어 ID ${storeId}를 찾을 수 없어서 첫 번째 사용 가능한 스토어로 변경했습니다.`);
             } else {
               console.log('스토어 API 실패로 인해 기본 스토어 정보를 사용합니다.');
               // 스토어 API 실패 시에도 메뉴 로드 계속 진행
@@ -389,35 +343,8 @@ export default function CustomerMain() {
         return;
       }
       
-      // 1. 먼저 키오스크 API 시도
-      console.log('키오스크 API 시도 중...');
-      const kioskResponse = await menuApi.getKioskMenus(storeId);
-      console.log('키오스크 API 응답:', kioskResponse);
-      
-      if (kioskResponse.success) {
-        // 키오스크 API 성공
-        const menusForFrontend = (kioskResponse.data || []).map((item: any) => {
-          return {
-            id: item.id,
-            name: item.name,
-            price: Math.round(Number(item.price)),
-            image: item.image,
-            description: item.description,
-            category: item.categoryName || item.category || '',
-            categoryId: item.categoryId || item.category_id,
-            isAvailable: item.isAvailable,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          };
-        });
-        console.log('키오스크 API 성공 - 변환된 메뉴:', menusForFrontend);
-        setMenus(menusForFrontend);
-        setLoading(false);
-        return;
-      }
-      
-      // 2. 키오스크 API 실패 시 기존 고객용 API 시도
-      console.log('키오스크 API 실패, 고객용 API 시도 중...');
+      // 고객용 공개 API 사용 (인증 없이)
+      console.log('고객용 공개 API 시도 중...');
       const response = await menuApi.getCustomerMenus(storeId);
       console.log('고객용 메뉴 API 응답:', response);
       
@@ -463,7 +390,8 @@ export default function CustomerMain() {
 
   const loadCategories = async () => {
     try {
-      const response = await menuCategoryApi.getCategories(storeId);
+      // 공개 카테고리 API 사용 (인증 없이)
+      const response = await menuCategoryApi.getPublicCategories(storeId);
       if (response.success) {
         setCategories(response.data || []);
       } else {
@@ -550,7 +478,8 @@ export default function CustomerMain() {
 
       console.log('주문 데이터:', orderData);
 
-      const response = await orderApi.createOrder(orderData);
+      // 공개 API 사용 (인증 없이)
+      const response = await orderApi.createPublicOrder(orderData);
       if (response.success) {
         alert(i18n.t('orderSuccess'));
         clearCart();
@@ -566,7 +495,8 @@ export default function CustomerMain() {
 
   const handleCallSubmit = async (callData: CreateCallRequest) => {
     try {
-      const response = await callApi.createCall(callData);
+      // 공개 API 사용 (인증 없이)
+      const response = await callApi.createPublicCall(callData);
       if (response.success) {
         alert(i18n.t('callSuccess'));
         setIsCallModalOpen(false);

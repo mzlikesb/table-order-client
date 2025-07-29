@@ -1,4 +1,5 @@
 import type { ApiResponse } from '../../types/api';
+import { apiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -127,22 +128,22 @@ export const authApi = {
         return { success: false, error: '토큰이 없습니다.' };
       }
       
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`,
+      const result = await apiRequest(
+        `${API_BASE_URL}/auth/refresh`,
+        {
+          method: 'POST',
         },
-      });
+        '토큰 갱신에 실패했습니다.'
+      );
       
-      if (!response.ok) {
-        return { success: false, error: '토큰 갱신에 실패했습니다.' };
+      if (result.success) {
+        const data = result.data;
+        localStorage.setItem('authToken', data.token);
+        
+        return { success: true, data };
       }
       
-      const data = await response.json();
-      localStorage.setItem('authToken', data.token);
-      
-      return { success: true, data };
+      return result;
     } catch (error) {
       console.error('토큰 갱신 오류:', error);
       return { success: false, error: '토큰 갱신 중 오류가 발생했습니다.' };

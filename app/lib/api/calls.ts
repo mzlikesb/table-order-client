@@ -1,4 +1,5 @@
 import type { Call, CreateCallRequest, CallStatus, CallType, ApiResponse } from '../../types/api';
+import { apiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -54,27 +55,31 @@ export const callApi = {
   getAdminCalls: async (storeId?: string): Promise<ApiResponse<Call[]>> => {
     try {
       const url = storeId ? `${API_BASE_URL}/calls/store/${storeId}` : `${API_BASE_URL}/calls`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '호출 목록을 불러오는데 실패했습니다.' };
+      
+      const result = await apiRequest(
+        url,
+        {},
+        '호출 목록을 불러오는데 실패했습니다.'
+      );
+      
+      if (result.success) {
+        // 백엔드 데이터를 프론트엔드 타입에 맞게 변환
+        const transformedCalls = (result.data || []).map((call: any) => ({
+          id: call.id,
+          tableId: call.table_id || call.tableId,
+          tableNumber: call.table_number || call.tableNumber, // 테이블 번호 추가
+          type: call.call_type || call.type,
+          status: call.status,
+          message: call.message,
+          createdAt: call.created_at || call.createdAt,
+          updatedAt: call.updated_at || call.updatedAt,
+          completedAt: call.completed_at || call.completedAt,
+        }));
+        
+        return { success: true, data: transformedCalls };
       }
-      const data = await response.json();
       
-      // 백엔드 데이터를 프론트엔드 타입에 맞게 변환
-      const transformedCalls = data.map((call: any) => ({
-        id: call.id,
-        tableId: call.table_id || call.tableId,
-        tableNumber: call.table_number || call.tableNumber, // 테이블 번호 추가
-        type: call.call_type || call.type,
-        status: call.status,
-        message: call.message,
-        createdAt: call.created_at || call.createdAt,
-        updatedAt: call.updated_at || call.updatedAt,
-        completedAt: call.completed_at || call.completedAt,
-      }));
-      
-      return { success: true, data: transformedCalls };
+      return result;
     } catch (error) {
       return { success: false, error: '호출 목록을 불러오는데 실패했습니다.' };
     }

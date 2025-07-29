@@ -1,4 +1,5 @@
 import type { Order, CreateOrderRequest, OrderStatus, ApiResponse } from '../../types/api';
+import { apiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -48,13 +49,11 @@ export const orderApi = {
         return { success: false, error: '스토어 ID가 필요합니다.' };
       }
       
-      const response = await fetch(`${API_BASE_URL}/orders/store/${storeId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || '주문 목록을 불러오는데 실패했습니다.' };
-      }
-      const data = await response.json();
-      return { success: true, data };
+      return await apiRequest(
+        `${API_BASE_URL}/orders/store/${storeId}`,
+        {},
+        '주문 목록을 불러오는데 실패했습니다.'
+      );
     } catch (error) {
       return { success: false, error: '주문 목록을 불러오는데 실패했습니다.' };
     }

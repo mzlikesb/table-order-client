@@ -4,6 +4,12 @@ export const getHeaders = () => {
     'Content-Type': 'application/json',
   };
   
+  // 인증 토큰 추가
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   // 멀티테넌트 지원을 위한 헤더
   const store = localStorage.getItem('admin_store');
   if (store) {
@@ -23,11 +29,30 @@ export const getHeaders = () => {
 // API 응답 처리 유틸리티
 export const handleApiResponse = async (response: Response, errorMessage: string) => {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: '서버 오류' }));
-    return { 
-      success: false, 
-      error: errorData.error || `${errorMessage} (${response.status})` 
-    };
+    try {
+      const errorData = await response.json();
+      console.error('API Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        errorData: JSON.stringify(errorData, null, 2)
+      });
+      return { 
+        success: false, 
+        error: errorData.error || errorData.message || `${errorMessage} (${response.status})` 
+      };
+    } catch (parseError) {
+      console.error('API Error (could not parse JSON):', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        parseError
+      });
+      return { 
+        success: false, 
+        error: `${errorMessage} (${response.status}: ${response.statusText})` 
+      };
+    }
   }
   
   try {

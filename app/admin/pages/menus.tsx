@@ -21,7 +21,9 @@ function AdminMenusContent() {
   // 스토어 정보 가져오기
   const getStoreInfo = () => {
     const storeInfo = localStorage.getItem('admin_store');
-    return storeInfo ? JSON.parse(storeInfo) : null;
+    const parsed = storeInfo ? JSON.parse(storeInfo) : null;
+    console.log('Store info from localStorage:', parsed);
+    return parsed;
   };
 
   const store = getStoreInfo();
@@ -102,6 +104,8 @@ function AdminMenusContent() {
       alert('스토어가 선택되지 않았습니다.');
       return;
     }
+
+    console.log('Creating category for store:', store.id, 'with name:', categoryName);
 
     try {
       const response = await menuCategoryApi.createCategory({

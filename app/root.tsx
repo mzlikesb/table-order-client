@@ -24,6 +24,23 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
+// Hydration fallback component
+export function HydrateFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          앱을 불러오는 중...
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400">
+          잠시만 기다려주세요
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false);
 
@@ -63,8 +80,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-
-        
         {children}
         <ScrollRestoration />
         <Scripts />

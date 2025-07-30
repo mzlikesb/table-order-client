@@ -1,5 +1,5 @@
 import type { Store, ApiResponse } from '../../types/api';
-import { apiRequest } from './common';
+import { apiRequest, publicApiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -82,5 +82,20 @@ export const storeApi = {
       { method: 'DELETE' },
       '스토어 삭제에 실패했습니다.'
     );
+  },
+  
+  // 공개 스토어 API (인증 없이)
+  getPublicStore: async (storeId: string): Promise<ApiResponse<Store>> => {
+    const result = await publicApiRequest(
+      `/stores/public/${storeId}`,
+      {},
+      '스토어 정보를 불러오는데 실패했습니다.'
+    );
+    
+    if (result.success) {
+      return { success: true, data: transformServerStore(result.data) };
+    }
+    
+    return result;
   },
 }; 

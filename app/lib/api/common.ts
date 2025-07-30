@@ -104,7 +104,20 @@ export const publicApiRequest = async (
   errorMessage: string
 ) => {
   try {
-    const response = await fetch(url, {
+    // url이 이미 전체 URL인지 확인하고 적절히 처리
+    let fullUrl: string;
+    if (url.startsWith('http')) {
+      // 이미 전체 URL인 경우
+      fullUrl = url;
+    } else {
+      // 경로만 전달된 경우 API_BASE_URL 추가
+      const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
+      fullUrl = `${API_BASE_URL}${url}`;
+    }
+    
+    console.log('공개 API 요청 URL:', fullUrl);
+    
+    const response = await fetch(fullUrl, {
       ...options,
       headers: {
         ...getPublicHeaders(),

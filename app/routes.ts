@@ -2,6 +2,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
     index("customer/pages/standby.tsx"),
+    route("/table-setup", "customer/pages/tableSetup.tsx"),
     route("/menu", "customer/pages/main.tsx"),
     route("/admin/login", "admin/pages/login.tsx"),
     route("/admin/select-mode", "admin/pages/selectMode.tsx"),

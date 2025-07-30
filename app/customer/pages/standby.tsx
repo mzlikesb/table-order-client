@@ -24,6 +24,26 @@ export default function Standby() {
     return null;
   };
 
+  // 테이블 정보 확인 함수
+  const checkTableInfo = () => {
+    const config = TableConfig.getInstance();
+    const storedTable = config.getTableNumber();
+    const savedStore = getStoreInfo();
+    
+    // 테이블 번호가 없거나 스토어 정보가 없으면 true 반환
+    return !storedTable || storedTable === '' || !savedStore;
+  };
+
+  // 테스트용: 로컬 데이터 삭제 함수
+  const clearLocalData = () => {
+    localStorage.removeItem('table_number');
+    localStorage.removeItem('admin_store');
+    const config = TableConfig.getInstance();
+    config.setTableNumber('');
+    console.log('로컬 데이터가 삭제되었습니다.');
+    window.location.reload();
+  };
+
   // storeId 추출
   const storeId = store?.id;
 
@@ -36,7 +56,14 @@ export default function Standby() {
     const storedTable = config.getTableNumber();
     setTableNumber(storedTable);
     
-    // 저장된 테이블이 없으면 모달 표시
+    // 테이블 정보가 없으면 테이블 설정 페이지로 리디렉트
+    if (checkTableInfo()) {
+      console.log('테이블 정보가 없습니다. 테이블 설정 페이지로 리디렉트합니다.');
+      window.location.href = '/table-setup';
+      return;
+    }
+    
+    // 저장된 테이블이 있지만 모달을 표시해야 하는 경우
     if (!storedTable || storedTable === '') {
       loadTables();
       setShowTableModal(true);
@@ -70,8 +97,9 @@ export default function Standby() {
       const url = `/menu?table=${tableNumber}`;
       window.location.href = url;
     } else {
-      loadTables();
-      setShowTableModal(true);
+      // 테이블 정보가 없으면 테이블 설정 페이지로 리디렉트
+      console.log('테이블 정보가 없습니다. 테이블 설정 페이지로 리디렉트합니다.');
+      window.location.href = '/table-setup';
     }
   };
 
@@ -119,11 +147,24 @@ export default function Standby() {
               {tableNumber ? '메뉴 보기' : '테이블 선택'}
             </p>
           </div>
+          
+          {/* 테스트용: 데이터 삭제 버튼 */}
+          <div className="mt-4 text-center">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                clearLocalData();
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+            >
+              테스트: 데이터 삭제
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 테이블 선택 모달 */}
-      {showTableModal && (
+      {showTableModal && store && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
@@ -139,7 +180,13 @@ export default function Standby() {
                   )}
                 </div>
                 <button
-                  onClick={() => setShowTableModal(false)}
+                  onClick={() => {
+                    setShowTableModal(false);
+                    // 모달을 닫을 때 테이블 정보가 없으면 테이블 설정 페이지로 리디렉트
+                    if (!tableNumber) {
+                      window.location.href = '/table-setup';
+                    }
+                  }}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,9 +231,18 @@ export default function Standby() {
 
                 {!loading && tables.filter(t => t.status === 'available').length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
                       사용 가능한 테이블이 없습니다.
                     </p>
+                    <button
+                      onClick={() => {
+                        setShowTableModal(false);
+                        window.location.href = '/table-setup';
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      테이블 ID로 설정하기
+                    </button>
                   </div>
                 )}
               </div>

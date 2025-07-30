@@ -36,19 +36,10 @@ export const menuCategoryApi = {
     
     try {
       console.log('getPublicCategories 호출 - storeId:', storeId);
-      console.log('API_BASE_URL:', API_BASE_URL);
       
-      const url = `${API_BASE_URL}/menu-categories/customer?store_id=${storeId}`;
-      console.log('공개 카테고리 API 요청 URL:', url);
-      console.log('전체 URL 구성:', {
-        base: API_BASE_URL,
-        path: '/menu-categories/customer',
-        query: `store_id=${storeId}`,
-        full: url
-      });
-      
+      // 공개 API 요청 - 경로만 전달 (publicApiRequest가 API_BASE_URL을 추가함)
       const result = await publicApiRequest(
-        url,
+        `/menu-categories/customer?store_id=${storeId}`,
         {},
         '카테고리 목록을 불러오는데 실패했습니다.'
       );

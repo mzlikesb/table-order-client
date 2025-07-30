@@ -30,7 +30,7 @@ export const orderApi = {
   createPublicOrder: async (orderData: CreateOrderRequest): Promise<ApiResponse<Order>> => {
     try {
       const result = await publicApiRequest(
-        `${API_BASE_URL}/orders/public`,
+        `/orders/public`,
         {
           method: 'POST',
           body: JSON.stringify(orderData),

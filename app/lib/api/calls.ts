@@ -66,7 +66,7 @@ export const callApi = {
       };
       
       const result = await publicApiRequest(
-        `${API_BASE_URL}/calls/public`,
+        `/calls/public`,
         {
           method: 'POST',
           body: JSON.stringify(serverCallData),

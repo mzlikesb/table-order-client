@@ -36,31 +36,31 @@ export const menuApi = {
     return result;
   },
 
-  // 키오스크용 메뉴 API (고객용)
-  getKioskMenus: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
+  // 고객용 메뉴 API (인증 없이) - 기존 키오스크용 API
+  getCustomerMenusLegacy: async (storeId?: string): Promise<ApiResponse<MenuItem[]>> => {
     if (!storeId) return { success: true, data: [] };
     
     try {
-      console.log('getKioskMenus 호출 - storeId:', storeId);
+      console.log('getCustomerMenusLegacy 호출 - storeId:', storeId);
       
-      // 키오스크용 엔드포인트 사용 (CORS 문제 해결을 위해 헤더 단순화)
+      // 기존 키오스크용 엔드포인트 사용 (CORS 문제 해결을 위해 헤더 단순화)
       const url = `${API_BASE_URL}/menus/kiosk?store_id=${storeId}`;
-      console.log('키오스크 메뉴 API 요청 URL:', url);
+      console.log('고객용 메뉴 API 요청 URL:', url);
       
       // 간단한 헤더만 사용 (CORS 문제 방지)
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
       
-      console.log('키오스크 메뉴 API 요청 헤더:', headers);
+      console.log('고객용 메뉴 API 요청 헤더:', headers);
       
       const response = await fetch(url, { headers });
       
-      console.log('키오스크 메뉴 API 응답 상태:', response.status, response.statusText);
+      console.log('고객용 메뉴 API 응답 상태:', response.status, response.statusText);
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => '응답 텍스트를 읽을 수 없습니다.');
-        console.error('키오스크 메뉴 API 오류 응답:', errorText);
+        console.error('고객용 메뉴 API 오류 응답:', errorText);
         
         if (response.status === 400) {
           return { success: false, error: `잘못된 요청입니다. storeId: ${storeId}, 응답: ${errorText}` };
@@ -76,10 +76,10 @@ export const menuApi = {
       }
       
       const data = await response.json();
-      console.log('키오스크 메뉴 API 성공 응답:', data);
+      console.log('고객용 메뉴 API 성공 응답:', data);
       return { success: true, data: data.map(transformServerMenuItem) };
     } catch (error) {
-      console.error('키오스크 메뉴 API 네트워크 오류:', error);
+      console.error('고객용 메뉴 API 네트워크 오류:', error);
       return { success: false, error: '메뉴 목록을 불러오는데 실패했습니다.' };
     }
   },
@@ -90,20 +90,10 @@ export const menuApi = {
     
     try {
       console.log('getCustomerMenus 호출 - storeId:', storeId);
-      console.log('API_BASE_URL:', API_BASE_URL);
       
-      // 새로운 공개 메뉴 API 엔드포인트 사용
-      const url = `${API_BASE_URL}/menus/customer?store_id=${storeId}`;
-      console.log('공개 메뉴 API 요청 URL:', url);
-      console.log('전체 URL 구성:', {
-        base: API_BASE_URL,
-        path: '/menus/customer',
-        query: `store_id=${storeId}`,
-        full: url
-      });
-      
+      // 공개 API 요청 - 경로만 전달 (publicApiRequest가 API_BASE_URL을 추가함)
       const result = await publicApiRequest(
-        url,
+        `/menus/customer?store_id=${storeId}`,
         {},
         '메뉴 목록을 불러오는데 실패했습니다.'
       );

@@ -283,6 +283,9 @@ function AdminTablesContent() {
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {table.capacity}인용
                         </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                          ID: {table.id}
+                        </p>
                       </div>
                     </div>
                   </div>

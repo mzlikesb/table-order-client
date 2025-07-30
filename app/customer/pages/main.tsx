@@ -5,7 +5,7 @@ import MenuCard from '../components/menuCard';
 import CartDrawer from '../components/cartDrawer';
 import CallModal from '../components/callModal';
 import Footer from '../components/footer';
-import { menuApi, orderApi, callApi, menuCategoryApi } from '../../lib/api';
+import { menuApi, orderApi, callApi, menuCategoryApi, tableApi, storeApi } from '../../lib/api';
 import { initSocket, joinTableRoom, onMenuUpdate, offMenuUpdate } from '../../lib/socket';
 import type { MenuItem, Category, CartItem } from '../../types/menu';
 import type { Order, CreateCallRequest, Store as StoreType } from '../../types/api';
@@ -62,22 +62,31 @@ export default function CustomerMain() {
   // 스토어 존재 여부 확인
   const checkStoreExists = async (storeId: string) => {
     try {
-      // 현재 백엔드에 구현된 공개 API가 없으므로 항상 true 반환
-      // 향후 스토어 공개 API가 구현되면 여기서 확인 가능
-      console.log('스토어 존재 확인 - 공개 API 미구현으로 인해 기본값 사용');
-      return true;
+      console.log('스토어 존재 확인 - storeId:', storeId);
+      
+      const storeResult = await storeApi.getPublicStore(storeId);
+      
+      if (storeResult.success && storeResult.data) {
+        console.log('스토어 존재 확인 성공:', storeResult.data.name);
+        return true;
+      } else {
+        console.log('스토어 존재 확인 실패:', storeResult.error);
+        return false;
+      }
     } catch (error) {
       console.error('스토어 존재 확인 실패:', error);
-      return true; // 에러 시에도 true 반환하여 fallback 메뉴 사용
+      return false;
     }
   };
 
   // 사용 가능한 스토어 목록 가져오기
   const loadAvailableStores = async () => {
     try {
-      // 현재 백엔드에 구현된 공개 API가 없으므로 빈 배열 반환
-      // 향후 스토어 공개 API가 구현되면 여기서 로드 가능
-      console.log('스토어 목록 로드 - 공개 API 미구현으로 인해 빈 배열 반환');
+      console.log('스토어 목록 로드 시작');
+      
+      // 현재는 공개 스토어 목록 API가 없으므로 빈 배열 반환
+      // 향후 스토어 공개 목록 API가 구현되면 여기서 로드 가능
+      console.log('스토어 목록 로드 - 공개 목록 API 미구현으로 인해 빈 배열 반환');
       return [];
     } catch (error) {
       console.error('스토어 목록 로드 실패:', error);
@@ -85,13 +94,27 @@ export default function CustomerMain() {
     }
   };
 
-  // 테이블 번호로 테이블 ID 찾기
+  // 테이블 번호로 테이블 ID 찾기 (공개 API 사용)
   const findTableIdByNumber = async (tableNumber: string, storeId: string) => {
     try {
-      // 현재 백엔드에 구현된 공개 API가 없으므로 null 반환
-      // 향후 테이블 공개 API가 구현되면 여기서 찾기 가능
-      console.log('테이블 ID 찾기 - 공개 API 미구현으로 인해 null 반환');
-      return null;
+      console.log('테이블 ID 찾기 시작 - tableNumber:', tableNumber, 'storeId:', storeId);
+      
+      // 스토어의 모든 테이블을 조회하여 테이블 번호로 ID 찾기
+      const tablesResult = await tableApi.getPublicTablesByStore(storeId);
+      
+      if (!tablesResult.success || !tablesResult.data) {
+        console.log('스토어 테이블 목록 조회 실패:', tablesResult.error);
+        return null;
+      }
+      
+      const table = tablesResult.data.find(t => t.number === tableNumber);
+      if (table) {
+        console.log('테이블 ID 찾기 성공:', table.id);
+        return table.id;
+      } else {
+        console.log('테이블 ID를 찾을 수 없음:', tableNumber);
+        return null;
+      }
     } catch (error) {
       console.error('테이블 ID 찾기 실패:', error);
       return null;
@@ -136,6 +159,26 @@ export default function CustomerMain() {
     setShowTimer(false);
   };
 
+  // 테이블 ID로 완전한 테이블 정보 조회 (고객용 설정)
+  const getTableInfoById = async (tableId: string) => {
+    try {
+      console.log('테이블 정보 조회 시작 - tableId:', tableId);
+      
+      const tableResult = await tableApi.getPublicTable(tableId);
+      
+      if (!tableResult.success || !tableResult.data) {
+        console.log('테이블 정보 조회 실패:', tableResult.error);
+        return null;
+      }
+      
+      console.log('테이블 정보 조회 성공:', tableResult.data);
+      return tableResult.data;
+    } catch (error) {
+      console.error('테이블 정보 조회 실패:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // 스토어 정보 초기화
     const storeInfo = getStoreInfo();
@@ -144,6 +187,13 @@ export default function CustomerMain() {
     // 테이블 번호 초기화
     const currentTableId = getTableId();
     setTableId(currentTableId);
+    
+    // 테이블 ID가 없으면 테이블 설정 페이지로 리디렉트
+    if (!currentTableId || currentTableId === '1') {
+      console.log('테이블 ID가 설정되지 않았습니다. 테이블 설정 페이지로 리디렉트합니다.');
+      window.location.href = '/table-setup';
+      return;
+    }
     
     // Socket.IO 초기화 및 테이블 룸 참가
     const socket = initSocket();
@@ -390,6 +440,12 @@ export default function CustomerMain() {
 
   const loadCategories = async () => {
     try {
+      // storeId가 없으면 조기 반환
+      if (!storeId) {
+        console.log('storeId가 없어서 카테고리 로드를 건너뜁니다.');
+        return;
+      }
+      
       // 공개 카테고리 API 사용 (인증 없이)
       const response = await menuCategoryApi.getPublicCategories(storeId);
       if (response.success) {

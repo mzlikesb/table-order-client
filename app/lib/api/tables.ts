@@ -1,5 +1,5 @@
 import type { Table, TableStatus, ApiResponse } from '../../types/api';
-import { apiRequest } from './common';
+import { apiRequest, publicApiRequest } from './common';
 
 const API_BASE_URL = 'http://dongyo.synology.me:14000/api';
 
@@ -158,5 +158,23 @@ export const tableApi = {
     }
     
     return result;
+  },
+
+  // 공개 API: 스토어별 테이블 목록 (인증 없이)
+  getPublicTablesByStore: async (storeId: string): Promise<ApiResponse<Table[]>> => {
+    console.log('getPublicTablesByStore 호출 - storeId:', storeId);
+    return await publicApiRequest(`/tables/public/store/${storeId}`, {}, '스토어별 테이블 목록을 불러오는데 실패했습니다.');
+  },
+
+  // 공개 API: 개별 테이블 정보 조회 (인증 없이)
+  getPublicTable: async (tableId: string): Promise<ApiResponse<Table>> => {
+    console.log('getPublicTable 호출 - tableId:', tableId);
+    return await publicApiRequest(`/tables/public/${tableId}`, {}, '테이블 정보를 불러오는데 실패했습니다.');
+  },
+
+  // 고객용 테이블 정보 조회: 테이블 ID로 완전한 정보 조회
+  getCustomerTableInfo: async (tableId: string): Promise<ApiResponse<Table>> => {
+    console.log('getCustomerTableInfo 호출 - tableId:', tableId);
+    return await publicApiRequest(`/tables/public/${tableId}`, {}, '테이블 정보를 불러오는데 실패했습니다.');
   }
 }; 
